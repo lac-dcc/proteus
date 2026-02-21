@@ -1,4 +1,6 @@
-# Proteus: Multidirectional Sparsity Propagation for MLIR
+<p align="center">
+  <img alt="Project Banner" src="assets/images/banner.png" width="90%" height="auto"/></br>
+</p>
 
 Proteus is an MLIR-based implementation of **[Sparsity Propagation Analysis](https://homepages.dcc.ufmg.br/~fernando/publications/papers/CGO26_Kaio.pdf) (SPA)**. It provides a static analysis framework to conservatively infer sparsity in tensor slices by propagating information across computational graphs. Unlike traditional element-wise analyses, Proteus operates on dimension-indexed bitmaps, making it asymptotically faster than graph execution.
 
