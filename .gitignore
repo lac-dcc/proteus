@@ -42,3 +42,9 @@
 
 # CMake Generated
 build
+
+# Note Files
+*.md
+
+# Tests related files
+tests/.lit_test_times.txt
