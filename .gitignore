@@ -39,3 +39,13 @@
 
 # debug information files
 *.dwo
+
+# CMake Generated
+build/
+docs/
+
+# Note Files
+*.md
+
+# Tests related files
+tests/.lit_test_times.txt
