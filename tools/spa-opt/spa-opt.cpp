@@ -1,4 +1,4 @@
-#include "SPAPass.h"
+#include "Analysis/SPAPass.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
