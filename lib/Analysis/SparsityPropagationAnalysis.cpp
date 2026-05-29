@@ -1,13 +1,13 @@
-#include "Analysis/SPAPass.h"
+#include "Analysis/SparsityPropagationAnalysis.h"
 
 #include "mlir/Pass/Pass.h"
 
 namespace spa {
-void SPAPass::runOnOperation() {
+void SparsityPropagationAnalysis::runOnOperation() {
   getOperation().walk([](mlir::Operation *op) {});
 }
 
 std::unique_ptr<mlir::Pass> createSPAPass() {
-  return std::make_unique<spa::SPAPass>();
+  return std::make_unique<spa::SparsityPropagationAnalysis>();
 }
 } // namespace spa

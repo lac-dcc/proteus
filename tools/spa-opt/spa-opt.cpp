@@ -1,4 +1,4 @@
-#include "Analysis/SPAPass.h"
+#include "Analysis/SparsityPropagationAnalysis.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Func/IR/FuncOps.h"
@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
     registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect,
                     mlir::linalg::LinalgDialect>();
 
-    mlir::PassRegistration<spa::SPAPass>();
+    mlir::PassRegistration<spa::SparsityPropagationAnalysis>();
 
     return mlir::asMainReturnCode(
         mlir::MlirOptMain(argc, argv, "Tensor Slice Sparsity Propagation Pass\n", registry));

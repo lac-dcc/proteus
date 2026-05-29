@@ -9,15 +9,15 @@ class Pass;
 
 namespace spa {
 
-struct SPAPass
-    : public mlir::PassWrapper<SPAPass,
+struct SparsityPropagationAnalysis
+    : public mlir::PassWrapper<SparsityPropagationAnalysis,
                                mlir::OperationPass<mlir::func::FuncOp>> {
   llvm::StringRef getArgument() const override { return "spa"; }
   llvm::StringRef getDescription() const override {
-    return "Tensor Slice Sparsity Propagation Pass";
+    return "Tensor Slice Sparsity Propagation Analysis";
   }
   void runOnOperation() override;
 };
 
-std::unique_ptr<mlir::Pass> createSPAPass();
+std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis();
 } // namespace spa

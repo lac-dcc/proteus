@@ -1,5 +1,5 @@
-add_mlir_library(SPAPass
-  SPAPass.cpp
+add_mlir_library(SparsityPropagationAnalysis
+  SparsityPropagationAnalysis.cpp
 
   LINK_LIBS PUBLIC
   MLIRIR
