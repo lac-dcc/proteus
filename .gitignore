@@ -41,7 +41,8 @@
 *.dwo
 
 # CMake Generated
-build
+build/
+docs/
 
 # Note Files
 *.md
