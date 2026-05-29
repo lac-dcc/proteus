@@ -15,11 +15,11 @@ set-style:
 	@clang-format --style=LLVM --dump-config > .clang-format
 
 format:
-	@find src include tests \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" \) \
+	@find lib include tests \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" \) \
 		| xargs clang-format -i
 
 format-check:
-	@find src include tests \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" \) \
+	@find lib include tests \( -name "*.cpp" -o -name "*.hpp" -o -name "*.h" \) \
 		| xargs clang-format --dry-run --Werror
 
 test: build
