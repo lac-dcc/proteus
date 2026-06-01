@@ -5,7 +5,7 @@ NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 config:
 	cmake -S . -B build -G Ninja
 
-build/build.ninja: CMakeLists.txt lib/CMakeLists.txt tools/spa-opt/CMakeLists.txt
+build/build.ninja: CMakeLists.txt lib/CMakeLists.txt tools/proteus-opt/CMakeLists.txt
 	cmake -S . -B build -G Ninja
 
 build: build/build.ninja

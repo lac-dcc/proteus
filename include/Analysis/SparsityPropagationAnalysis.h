@@ -7,7 +7,7 @@ namespace mlir {
 class Pass;
 }
 
-namespace spa {
+namespace proteus {
 
 struct SparsityPropagationAnalysis
     : public mlir::PassWrapper<SparsityPropagationAnalysis,
@@ -20,4 +20,4 @@ struct SparsityPropagationAnalysis
 };
 
 std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis();
-} // namespace spa
+} // namespace proteus

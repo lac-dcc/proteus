@@ -10,7 +10,7 @@ int main(int argc, char **argv) {
     registry.insert<mlir::arith::ArithDialect, mlir::func::FuncDialect,
                     mlir::linalg::LinalgDialect>();
 
-    mlir::PassRegistration<spa::SparsityPropagationAnalysis>();
+    mlir::PassRegistration<proteus::SparsityPropagationAnalysis>();
 
     return mlir::asMainReturnCode(
         mlir::MlirOptMain(argc, argv, "Tensor Slice Sparsity Propagation Pass\n", registry));

@@ -2,12 +2,12 @@
 
 #include "mlir/Pass/Pass.h"
 
-namespace spa {
+namespace proteus {
 void SparsityPropagationAnalysis::runOnOperation() {
   getOperation().walk([](mlir::Operation *op) {});
 }
 
 std::unique_ptr<mlir::Pass> createSPAPass() {
-  return std::make_unique<spa::SparsityPropagationAnalysis>();
+  return std::make_unique<proteus::SparsityPropagationAnalysis>();
 }
-} // namespace spa
+} // namespace proteus
