@@ -1,4 +1,4 @@
-// RUN: proteus-opt --spa %s | FileCheck %s
+// RUN: proteus-opt --spa-analysis %s | FileCheck %s
 
 // CHECK-LABEL: func.func @matmul
 func.func @matmul() -> tensor<3x3xf32> {
