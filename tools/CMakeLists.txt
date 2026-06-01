@@ -1,1 +1,1 @@
-add_subdirectory(spa-opt)
+add_subdirectory(proteus-opt)

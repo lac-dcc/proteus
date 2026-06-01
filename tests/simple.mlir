@@ -1,4 +1,4 @@
-// RUN: spa-opt %s | FileCheck %s
+// RUN: proteus-opt %s | FileCheck %s
 
 // CHECK-LABEL: func.func @add
 func.func @add(%a: f32, %b: f32) -> f32 {
