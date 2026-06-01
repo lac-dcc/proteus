@@ -45,7 +45,8 @@ jobs:
             libmlir-18-dev \
             mlir-18-tools \
             clang-18 \
-            ninja-build
+            ninja-build \
+            libgtest-dev
 
       - name: Install lit
         run: pip install lit
@@ -59,7 +60,10 @@ jobs:
       - name: Build
         run: cmake --build build --parallel $(nproc)
 
-      - name: Test
+      - name: Test (lit)
         env:
           LLVM_PREFIX: /usr/lib/llvm-18
         run: lit tests -v
+
+      - name: Test (unit)
+        run: ctest --test-dir build --output-on-failure
