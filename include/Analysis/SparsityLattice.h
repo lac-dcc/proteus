@@ -10,12 +10,14 @@ class SparsityLattice {
 public:
   SparsityLattice(llvm::ArrayRef<uint64_t> shape);
 
-  llvm::BitVector &operator[](const uint64_t index);
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &out,
                                        const SparsityLattice &lattice);
+  llvm::BitVector &operator[](const uint64_t index);
 
   static mlir::ArrayAttr toAttr(const SparsityLattice &lattice,
                                 mlir::MLIRContext *ctx);
+  static std::shared_ptr<SparsityLattice>
+  getSparsityLattice(mlir::Operation *op);
 
 private:
   llvm::SmallVector<llvm::BitVector> sparsities;

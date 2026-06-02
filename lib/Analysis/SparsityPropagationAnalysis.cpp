@@ -1,17 +1,20 @@
 #include "Analysis/SparsityPropagationAnalysis.h"
 
+#include "Analysis/SparsityLattice.h"
+
 #include "mlir/Pass/Pass.h"
-#include <iostream>
 
 namespace proteus {
 void SparsityPropagationAnalysis::runOnOperation() {
-  getOperation().walk([](mlir::Operation *op) {});
 
-  if (latticeDump) {
-    std::cout << "latticeDump enabled.\n";
-  } else {
-    std::cout << "latticeDump disabled.\n";
-  }
+  getOperation().walk([](mlir::Operation *op) {
+    auto lattice = SparsityLattice::getSparsityLattice(op);
+
+    if (lattice) {
+      op->emitWarning(
+          "This is an op that should have a lattice or something right?");
+    }
+  });
 }
 
 std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis() {

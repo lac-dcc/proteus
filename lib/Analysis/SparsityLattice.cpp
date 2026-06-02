@@ -2,6 +2,7 @@
 
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
+#include "llvm/ADT/TypeSwitch.h"
 
 namespace proteus {
 
@@ -38,6 +39,13 @@ mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
     bvAttrs.push_back(dict);
   }
   return mlir::ArrayAttr::get(ctx, bvAttrs);
+}
+
+std::shared_ptr<SparsityLattice>
+SparsityLattice::getSparsityLattice(mlir::Operation *op) {
+  return mlir::TypeSwitch<mlir::Operation *, std::shared_ptr<SparsityLattice>>(
+             op)
+      .Default([](auto) { return nullptr; });
 }
 
 } // namespace proteus
