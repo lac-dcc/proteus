@@ -7,5 +7,6 @@ add_mlir_library(SparsityPropagationAnalysis
   MLIRPass
   MLIRFuncDialect
   MLIRArithDialect
+  MLIRLinalgDialect
   MLIRSupport
 )

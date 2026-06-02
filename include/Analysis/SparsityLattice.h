@@ -16,8 +16,7 @@ public:
 
   static mlir::ArrayAttr toAttr(const SparsityLattice &lattice,
                                 mlir::MLIRContext *ctx);
-  static std::shared_ptr<SparsityLattice>
-  getSparsityLattice(mlir::Operation *op);
+  static SparsityLattice *fromOp(mlir::Operation *op);
 
 private:
   llvm::SmallVector<llvm::BitVector> sparsities;

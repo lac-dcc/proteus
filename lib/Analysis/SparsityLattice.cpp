@@ -1,5 +1,7 @@
 #include "Analysis/SparsityLattice.h"
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -41,11 +43,16 @@ mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
   return mlir::ArrayAttr::get(ctx, bvAttrs);
 }
 
-std::shared_ptr<SparsityLattice>
-SparsityLattice::getSparsityLattice(mlir::Operation *op) {
-  return mlir::TypeSwitch<mlir::Operation *, std::shared_ptr<SparsityLattice>>(
-             op)
-      .Default([](auto) { return nullptr; });
+SparsityLattice *SparsityLattice::fromOp(mlir::Operation *op) {
+  for (auto result : op->getResults()) {
+    auto tensorType = llvm::dyn_cast<mlir::RankedTensorType>(result.getType());
+    if (!tensorType || !tensorType.hasStaticShape())
+      continue;
+    auto shape = tensorType.getShape();
+    llvm::SmallVector<uint64_t> uShape(shape.begin(), shape.end());
+    return new SparsityLattice(uShape);
+  }
+  return nullptr;
 }
 
 } // namespace proteus

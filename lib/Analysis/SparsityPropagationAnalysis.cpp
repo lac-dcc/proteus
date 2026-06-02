@@ -6,14 +6,16 @@
 
 namespace proteus {
 void SparsityPropagationAnalysis::runOnOperation() {
+  getOperation().walk([this](mlir::Operation *op) {
+    auto *lattice = SparsityLattice::fromOp(op);
 
-  getOperation().walk([](mlir::Operation *op) {
-    auto lattice = SparsityLattice::getSparsityLattice(op);
+    if (!lattice)
+      return;
 
-    if (lattice) {
-      op->emitWarning(
-          "This is an op that should have a lattice or something right?");
-    }
+    if (latticeDump)
+      op->setAttr("spa", SparsityLattice::toAttr(*lattice, op->getContext()));
+
+    delete lattice;
   });
 }
 
