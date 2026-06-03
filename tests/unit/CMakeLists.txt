@@ -1,4 +1,5 @@
 find_package(GTest REQUIRED)
+include(GoogleTest)
 
 add_executable(SparsityLatticeTests SparsityLatticeTest.cpp)
 
@@ -15,4 +16,4 @@ get_filename_component(_gtest_rpath "${GTest_DIR}/../.." ABSOLUTE)
 set_target_properties(SparsityLatticeTests PROPERTIES BUILD_RPATH "${_gtest_rpath}")
 
 enable_testing()
-add_test(NAME SparsityLatticeTests COMMAND SparsityLatticeTests)
+gtest_discover_tests(SparsityLatticeTests)
