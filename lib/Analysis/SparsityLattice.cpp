@@ -1,5 +1,7 @@
 #include "Analysis/SparsityLattice.h"
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 
@@ -11,8 +13,51 @@ SparsityLattice::SparsityLattice(llvm::ArrayRef<uint64_t> shape) {
   }
 }
 
+uint64_t SparsityLattice::rank() const { return sparsities.size(); }
+
+llvm::SmallVector<uint64_t> SparsityLattice::shape() const {
+  llvm::SmallVector<uint64_t> shapes;
+  for (const auto &bv : sparsities) {
+    shapes.push_back(bv.size());
+  }
+  return shapes;
+}
+
 llvm::BitVector &SparsityLattice::operator[](const uint64_t index) {
   return sparsities[index];
+}
+
+const llvm::BitVector &SparsityLattice::operator[](const uint64_t index) const {
+  return sparsities[index];
+}
+
+bool SparsityLattice::operator==(const SparsityLattice &other) const {
+  if (sparsities.size() != other.sparsities.size())
+    return false;
+  for (size_t i = 0; i < sparsities.size(); ++i)
+    if (sparsities[i] != other.sparsities[i])
+      return false;
+  return true;
+}
+
+bool SparsityLattice::operator!=(const SparsityLattice &other) const {
+  return (!(*this == other));
+}
+
+SparsityLattice SparsityLattice::join(const SparsityLattice &a,
+                                      const SparsityLattice &b) {
+  if (a.shape() != b.shape()) {
+    llvm::report_fatal_error("Shapes of lattices when joining are different.");
+  }
+
+  SparsityLattice lattice(a.shape());
+
+  for (std::size_t i = 0; i < lattice.rank(); i++) {
+    lattice[i] = a[i];
+    lattice[i] |= b[i];
+  }
+
+  return lattice;
 }
 
 mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
@@ -38,6 +83,18 @@ mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
     bvAttrs.push_back(dict);
   }
   return mlir::ArrayAttr::get(ctx, bvAttrs);
+}
+
+SparsityLattice *SparsityLattice::fromOp(mlir::Operation *op) {
+  for (auto result : op->getResults()) {
+    auto tensorType = llvm::dyn_cast<mlir::RankedTensorType>(result.getType());
+    if (!tensorType || !tensorType.hasStaticShape())
+      continue;
+    auto shape = tensorType.getShape();
+    llvm::SmallVector<uint64_t> uShape(shape.begin(), shape.end());
+    return new SparsityLattice(uShape);
+  }
+  return nullptr;
 }
 
 } // namespace proteus
