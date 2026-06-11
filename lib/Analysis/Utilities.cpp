@@ -10,7 +10,14 @@ void proteus::printState(
   for (const auto &[val, lattice] : state) {
     os << "  ";
     val.print(os);
-    os << " -> " << lattice << "\n";
+    os << "\n  ╰─▶ ";
+    std::string latBuf;
+    llvm::raw_string_ostream latOs(latBuf);
+    latOs << lattice;
+    latOs.flush();
+    for (char c : latBuf)
+      os << (c == '\n' ? "\n      " : llvm::StringRef(&c, 1));
+    os << "\n";
   }
   os << "======================\n";
   llvm::outs() << os.str();

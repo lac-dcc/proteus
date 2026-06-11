@@ -130,16 +130,22 @@ private:
 
 inline llvm::raw_ostream &operator<<(llvm::raw_ostream &out,
                                      const SparsityLattice &lattice) {
-  out << "SparsityLattice [";
+  out << "SparsityLattice<";
   for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
     if (d > 0)
-      out << " | ";
-    const auto &bv = lattice.sparsities[d];
-    for (uint64_t i = 0; i < bv.size(); i++)
-      out << (bv[i] ? '1' : '0');
+      out << "x";
+    out << lattice.sparsities[d].size();
   }
-  out << "]";
+  out << "> {\n";
+  for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
+    const auto &bv = lattice.sparsities[d];
+    out << "  a[" << d << "]: ";
+    for (uint64_t i = 0; i < bv.size(); ++i)
+      out << (bv[i] ? '1' : '0');
+    out << "  (" << bv.size() << " slices)\n";
+  }
+  out << "}";
   return out;
-};
+}
 
 } // namespace proteus
