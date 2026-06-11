@@ -1,6 +1,7 @@
 add_mlir_library(SparsityPropagationAnalysis
   SparsityLattice.cpp
   SparsityPropagationAnalysis.cpp
+  SparsityAnalysis.cpp
   Utilities.cpp
 
   LINK_LIBS PUBLIC
