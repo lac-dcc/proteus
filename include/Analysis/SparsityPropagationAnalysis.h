@@ -35,6 +35,11 @@ struct SparsityPropagationAnalysis
       *this, "lattice-dump",
       llvm::cl::desc("Debug utility for showcasing lattices on results."),
       llvm::cl::init(false)};
+
+  Pass::Option<bool> stateDump{
+      *this, "state-dump",
+      llvm::cl::desc("Debug utility for showcasing DenseMap Lattice state."),
+      llvm::cl::init(false)};
 };
 
 std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis();
