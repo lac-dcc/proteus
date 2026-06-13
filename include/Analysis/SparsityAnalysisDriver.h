@@ -6,7 +6,19 @@
 namespace proteus {
 using LatticeMap = llvm::DenseMap<mlir::Value, proteus::SparsityLattice>;
 
+struct SeedPass {
+  static mlir::LogicalResult run(mlir::Block *block, LatticeMap &state);
+};
+
 struct ForwardPass {
+  static mlir::LogicalResult run(mlir::Block *block, LatticeMap &state);
+};
+
+struct LateralPass {
+  static mlir::LogicalResult run(mlir::Block *block, LatticeMap &state);
+};
+
+struct BackwardPass {
   static mlir::LogicalResult run(mlir::Block *block, LatticeMap &state);
 };
 

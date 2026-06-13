@@ -1,6 +1,6 @@
 #include "Analysis/SparsityPropagationAnalysis.h"
 
-#include "Analysis/SparsityAnalysis.h"
+#include "Analysis/SparsityAnalysisDriver.h"
 #include "Analysis/SparsityLattice.h"
 #include "Analysis/Utilities.h"
 
