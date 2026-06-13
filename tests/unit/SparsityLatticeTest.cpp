@@ -86,7 +86,6 @@ TEST(SparsityLattice, JoinOfTwoDenseLatticesIsDense) {
 TEST(SparsityLattice, JoinPreservesSparseBitsAgreedByBothOperands) {
   proteus::SparsityLattice a({4, 8});
   proteus::SparsityLattice b({4, 8});
-  // Both agree that row 1 is sparse.
   a[0].reset(1);
   b[0].reset(1);
   auto result = proteus::SparsityLattice::join(a, b);
@@ -96,7 +95,6 @@ TEST(SparsityLattice, JoinPreservesSparseBitsAgreedByBothOperands) {
 TEST(SparsityLattice, JoinDropsSparseBitNotAgreedByBothOperands) {
   proteus::SparsityLattice a({4, 8});
   proteus::SparsityLattice b({4, 8});
-  // Only a considers row 2 sparse; b does not.
   a[0].reset(2);
   auto result = proteus::SparsityLattice::join(a, b);
   EXPECT_EQ(result, b);
@@ -118,4 +116,10 @@ TEST(SparsityLattice, JoinIsIdempotent) {
   a[1].reset(5);
   auto result = proteus::SparsityLattice::join(a, a);
   EXPECT_EQ(result, a);
+}
+
+TEST(SparsityLattice, FromAttrReturnsNulloptWhenKeyMissing) {
+  mlir::MLIRContext ctx;
+  auto emptyDict = mlir::DictionaryAttr::get(&ctx, {});
+  EXPECT_FALSE(proteus::SparsityLattice::fromAttr(emptyDict).has_value());
 }

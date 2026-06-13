@@ -85,6 +85,29 @@ mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
   return mlir::ArrayAttr::get(ctx, bvAttrs);
 }
 
+std::optional<SparsityLattice>
+SparsityLattice::fromAttr(const mlir::DictionaryAttr &dict) {
+  auto sparsityAttr = dict.get("proteus.lattice");
+
+  if (!sparsityAttr)
+    return std::nullopt;
+
+  if (llvm::isa<mlir::ArrayAttr>(sparsityAttr)) {
+    auto arrayAttr = llvm::cast<mlir::ArrayAttr>(sparsityAttr);
+
+    llvm::SmallVector<uint64_t> shape;
+    for (auto dimAttr : arrayAttr) {
+      auto dimDict = llvm::cast<mlir::DictionaryAttr>(dimAttr);
+      shape.push_back(static_cast<uint64_t>(
+          llvm::cast<mlir::IntegerAttr>(dimDict.get("size")).getInt()));
+    }
+
+    return constructFromAttr(arrayAttr, shape);
+  }
+
+  return std::nullopt;
+}
+
 SparsityLattice *SparsityLattice::fromOp(mlir::Operation *op) {
   for (auto result : op->getResults()) {
     auto tensorType = llvm::dyn_cast<mlir::RankedTensorType>(result.getType());
@@ -95,6 +118,34 @@ SparsityLattice *SparsityLattice::fromOp(mlir::Operation *op) {
     return new SparsityLattice(uShape);
   }
   return nullptr;
+}
+
+SparsityLattice
+SparsityLattice::constructFromAttr(const mlir::ArrayAttr &arrayAttr,
+                                   const llvm::SmallVector<uint64_t> &shape) {
+  SparsityLattice lattice(shape);
+  // TODO: to implement reconstruction here from attribute
+  return lattice;
+}
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &out,
+                              const SparsityLattice &lattice) {
+  out << "SparsityLattice<";
+  for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
+    if (d > 0)
+      out << "x";
+    out << lattice.sparsities[d].size();
+  }
+  out << "> {\n";
+  for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
+    const auto &bv = lattice.sparsities[d];
+    out << "  a[" << d << "]: ";
+    for (uint64_t i = 0; i < bv.size(); ++i)
+      out << (bv[i] ? '1' : '0');
+    out << "  (" << bv.size() << " slices)\n";
+  }
+  out << "}";
+  return out;
 }
 
 } // namespace proteus

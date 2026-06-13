@@ -1,7 +1,7 @@
 // RUN: proteus-opt --spa-analysis="lattice-dump=true" %s | FileCheck %s
 
 // CHECK-LABEL: func.func @constants
-func.func @constants() -> tensor<3x4x5xf32> {
+func.func @constants(%a1 : tensor<32x48x24x13xf32>, %a2 : tensor<32x48x24x13xf32>) -> tensor<3x4x5xf32> {
 
   // CHECK: words = array<i64: 4294967295>
   // CHECK: words = array<i64: 281474976710655>

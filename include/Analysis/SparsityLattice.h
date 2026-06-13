@@ -4,6 +4,8 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <optional>
+
 namespace proteus {
 
 /**
@@ -110,6 +112,20 @@ public:
                                 mlir::MLIRContext *ctx);
 
   /**
+   * @brief Deserialises the MLIR dictionary attribute to a SparsityLattice
+   * object.
+   *
+   * Looks for a "spa.sparsity" key in @p dict. Returns std::nullopt if the key
+   * is absent, allowing callers to defer to the forward pass.
+   *
+   * @param dict A DictionaryAttr on a function argument.
+   * @return The reconstructed lattice, or std::nullopt if no sparsity
+   * annotation is present.
+   */
+  static std::optional<SparsityLattice>
+  fromAttr(const mlir::DictionaryAttr &dict);
+
+  /**
    * @brief Creates a lattice from the first ranked static-shape tensor result
    *        of an operation.
    *
@@ -126,26 +142,10 @@ public:
 
 private:
   llvm::SmallVector<llvm::BitVector> sparsities;
-};
 
-inline llvm::raw_ostream &operator<<(llvm::raw_ostream &out,
-                                     const SparsityLattice &lattice) {
-  out << "SparsityLattice<";
-  for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
-    if (d > 0)
-      out << "x";
-    out << lattice.sparsities[d].size();
-  }
-  out << "> {\n";
-  for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
-    const auto &bv = lattice.sparsities[d];
-    out << "  a[" << d << "]: ";
-    for (uint64_t i = 0; i < bv.size(); ++i)
-      out << (bv[i] ? '1' : '0');
-    out << "  (" << bv.size() << " slices)\n";
-  }
-  out << "}";
-  return out;
-}
+  static SparsityLattice
+  constructFromAttr(const mlir::ArrayAttr &arrayAttr,
+                    const llvm::SmallVector<uint64_t> &shape);
+};
 
 } // namespace proteus
