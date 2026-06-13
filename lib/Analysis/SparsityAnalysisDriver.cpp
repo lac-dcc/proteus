@@ -13,8 +13,8 @@ mlir::LogicalResult proteus::SeedPass::run(mlir::Block *block,
     if (funcOp)
       for (auto &arg : block->getArguments()) {
         auto dict = funcOp.getArgAttrDict(arg.getArgNumber());
+        // Reconstructure the lattice from an attribute
         if (dict) {
-          // Reconstructure the lattice from an attribute
           auto lattice = SparsityLattice::fromAttr(dict);
           if (lattice) {
             state.try_emplace(arg, lattice.value());
@@ -22,14 +22,16 @@ mlir::LogicalResult proteus::SeedPass::run(mlir::Block *block,
             auto lattice = SparsityLattice::defaultFromValue(
                 llvm::dyn_cast<mlir::Value>(arg));
 
-            if (lattice)
+            if (lattice.has_value())
               state.try_emplace(arg, lattice.value());
           }
+          // Create a default lattice in case of no proteus lattice
+          // attribute existing in the block argument
         } else {
           auto lattice = SparsityLattice::defaultFromValue(
               llvm::dyn_cast<mlir::Value>(arg));
 
-          if (lattice)
+          if (lattice.has_value())
             state.try_emplace(arg, lattice.value());
         }
       }
@@ -42,6 +44,10 @@ mlir::LogicalResult proteus::SeedPass::run(mlir::Block *block,
 
 mlir::LogicalResult proteus::ForwardPass::run(mlir::Block *block,
                                               LatticeMap &state) {
+  for (auto &op : block->getOperations()) {
+    // TODO: visit each operation here
+  }
+
   return mlir::success();
 }
 
@@ -75,10 +81,30 @@ mlir::LogicalResult proteus::SparsityAnalysis::run(mlir::Block *block) {
   return mlir::success();
 }
 
-proteus::LatticeMap &proteus::SparsityAnalysis::getState() { return state; }
-
 const proteus::LatticeMap &proteus::SparsityAnalysis::getState() const {
   return state;
+}
+
+proteus::LatticeMap &proteus::SparsityAnalysis::getState() { return state; }
+
+proteus::SparsityLattice *
+proteus::SparsityAnalysis::getState(const mlir::Value &value) {
+  auto it = state.find(value);
+
+  if (it != state.end())
+    return &it->second;
+
+  return nullptr;
+}
+
+const proteus::SparsityLattice *
+proteus::SparsityAnalysis::getState(const mlir::Value &value) const {
+  auto it = state.find(value);
+
+  if (it != state.end())
+    return &it->second;
+
+  return nullptr;
 }
 
 template <typename PassType>

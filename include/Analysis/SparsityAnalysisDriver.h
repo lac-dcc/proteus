@@ -1,11 +1,8 @@
 #include "Analysis/SparsityLattice.h"
 
 #include "mlir/IR/Value.h"
-#include "llvm/ADT/DenseMap.h"
 
 namespace proteus {
-using LatticeMap = llvm::DenseMap<mlir::Value, proteus::SparsityLattice>;
-
 struct SeedPass {
   static mlir::LogicalResult run(mlir::Block *block, LatticeMap &state);
 };
@@ -27,6 +24,8 @@ public:
   mlir::LogicalResult run(mlir::Block *block);
   const LatticeMap &getState() const;
   LatticeMap &getState();
+  SparsityLattice *getState(const mlir::Value &value);
+  const SparsityLattice *getState(const mlir::Value &value) const;
 
 private:
   template <typename PassType> mlir::LogicalResult run(mlir::Block *block);
