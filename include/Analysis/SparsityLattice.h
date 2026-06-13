@@ -130,18 +130,6 @@ public:
   fromAttr(const mlir::DictionaryAttr &dict);
 
   /**
-   * @brief Creates a lattice from the first ranked static-shape tensor result
-   *        of an operation.
-   *
-   * The returned lattice is fully dense. Returns nullptr if the operation has
-   * no ranked tensor result with a static shape.
-   *
-   * @param op The MLIR operation to inspect.
-   * @return A heap-allocated SparsityLattice, or nullptr.
-   */
-  static SparsityLattice *fromOp(mlir::Operation *op);
-
-  /**
    * @brief Creates a lattice from a ranked tensor value
    *
    * The returned lattice is fully dense. Returns std::nullopt if the operation

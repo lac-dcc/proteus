@@ -108,18 +108,6 @@ SparsityLattice::fromAttr(const mlir::DictionaryAttr &dict) {
   return std::nullopt;
 }
 
-SparsityLattice *SparsityLattice::fromOp(mlir::Operation *op) {
-  for (auto result : op->getResults()) {
-    auto tensorType = llvm::dyn_cast<mlir::RankedTensorType>(result.getType());
-    if (!tensorType || !tensorType.hasStaticShape())
-      continue;
-    auto shape = tensorType.getShape();
-    llvm::SmallVector<uint64_t> uShape(shape.begin(), shape.end());
-    return new SparsityLattice(uShape);
-  }
-  return nullptr;
-}
-
 std::optional<SparsityLattice>
 SparsityLattice::defaultFromValue(const mlir::Value &value) {
   auto tensorType = llvm::dyn_cast<mlir::RankedTensorType>(value.getType());
