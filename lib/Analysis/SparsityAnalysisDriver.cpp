@@ -1,10 +1,11 @@
 #include "Analysis/SparsityAnalysisDriver.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
+#include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/IR/Value.h"
+#include "llvm/ADT/TypeSwitch.h"
 
-mlir::LogicalResult proteus::SeedPass::run(mlir::Block *block,
-                                           LatticeMap &state) {
+Result proteus::SeedPass::run(mlir::Block *block, LatticeMap &state) {
 
   // Check for attributes in the arguments of a function
   if (block->isEntryBlock()) {
@@ -42,26 +43,23 @@ mlir::LogicalResult proteus::SeedPass::run(mlir::Block *block,
   return mlir::success();
 }
 
-mlir::LogicalResult proteus::ForwardPass::run(mlir::Block *block,
-                                              LatticeMap &state) {
-  for (auto &op : block->getOperations()) {
-    // TODO: visit each operation here
+Result proteus::ForwardPass::run(mlir::Block *block, LatticeMap &state) {
+  for ([[maybe_unused]] auto &op : block->getOperations()) {
+    // TODO: plug the visit function to visit each operation here
   }
 
   return mlir::success();
 }
 
-mlir::LogicalResult proteus::LateralPass::run(mlir::Block *block,
-                                              LatticeMap &state) {
+Result proteus::LateralPass::run(mlir::Block *block, LatticeMap &state) {
   return mlir::success();
 }
 
-mlir::LogicalResult proteus::BackwardPass::run(mlir::Block *block,
-                                               LatticeMap &state) {
+Result proteus::BackwardPass::run(mlir::Block *block, LatticeMap &state) {
   return mlir::success();
 }
 
-mlir::LogicalResult proteus::SparsityAnalysis::run(mlir::Block *block) {
+Result proteus::SparsityAnalysis::run(mlir::Block *block) {
   if (run<SeedPass>(block).failed()) {
     // TODO: crash and output something, currently seeding will never fail
   }
@@ -108,6 +106,27 @@ proteus::SparsityAnalysis::getState(const mlir::Value &value) const {
 }
 
 template <typename PassType>
-mlir::LogicalResult proteus::SparsityAnalysis::run(mlir::Block *block) {
+Result proteus::SparsityAnalysis::run(mlir::Block *block) {
   return PassType::run(block, state);
 }
+
+Result proteus::SparsityAnalysis::visit(mlir::Operation *op) {
+  if (op->getNumResults() != 1)
+    return mlir::success();
+
+  auto lattice = SparsityLattice::defaultFromValue(op->getResult(0));
+
+  if (lattice.has_value())
+    state.try_emplace(op->getResult(0), lattice.value());
+
+  mlir::TypeSwitch<mlir::Operation *>(op)
+      .Case<mlir::linalg::MatmulOp /* ,mlir::linalg::ManyOtherOps */>(
+          [&](auto typedOp) { visitOp(typedOp); })
+      .Default([](auto) {});
+
+  return mlir::success();
+}
+
+Result proteus::SparsityAnalysis::visitOp(mlir::linalg::MatmulOp op) {
+  return mlir::success();
+};

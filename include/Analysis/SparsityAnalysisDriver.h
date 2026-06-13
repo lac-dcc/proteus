@@ -1,22 +1,26 @@
 #include "Analysis/SparsityLattice.h"
 
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/Value.h"
 
+using Result = mlir::LogicalResult;
+
 namespace proteus {
+
 struct SeedPass {
-  static mlir::LogicalResult run(mlir::Block *block, LatticeMap &state);
+  static Result run(mlir::Block *block, LatticeMap &state);
 };
 
 struct ForwardPass {
-  static mlir::LogicalResult run(mlir::Block *block, LatticeMap &state);
+  static Result run(mlir::Block *block, LatticeMap &state);
 };
 
 struct LateralPass {
-  static mlir::LogicalResult run(mlir::Block *block, LatticeMap &state);
+  static Result run(mlir::Block *block, LatticeMap &state);
 };
 
 struct BackwardPass {
-  static mlir::LogicalResult run(mlir::Block *block, LatticeMap &state);
+  static Result run(mlir::Block *block, LatticeMap &state);
 };
 
 class SparsityAnalysis {
@@ -28,7 +32,12 @@ public:
   const SparsityLattice *getState(const mlir::Value &value) const;
 
 private:
-  template <typename PassType> mlir::LogicalResult run(mlir::Block *block);
+  template <typename PassType> Result run(mlir::Block *block);
+  Result visit(mlir::Operation *op);
+
+  // Linalg visitors
+  Result visitOp(mlir::linalg::MatmulOp op);
+  // Result visitOp(mlir::linalg::ManyOtherOps op);
 
   LatticeMap state;
 };

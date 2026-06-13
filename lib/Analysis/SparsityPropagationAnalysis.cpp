@@ -20,45 +20,23 @@ void SparsityPropagationAnalysis::runOnOperation() {
 
   getOperation().walk([&](mlir::Operation *op) {
     for (auto value : op->getOperands()) {
-      // Get the operand value, make sure it's a ranked tensor type
-      auto operand = llvm::dyn_cast<mlir::RankedTensorType>(value.getType());
-      // Check if it exists or is an nullptr
-      if (!operand || !operand.hasStaticShape())
-        return;
-
-      // Get the value's shape
-      auto shape = operand.getShape();
-      // Create the shape of the lattice
-      llvm::SmallVector<uint64_t> s(shape.begin(), shape.end());
-      // Create a default all dense lattice
-      SparsityLattice lattice(s);
+      auto lattice = SparsityLattice::defaultFromValue(value);
 
       // Add the value to the block's lattice map
-      SA.getState().try_emplace(value, lattice);
+      if (lattice.has_value())
+        SA.getState().try_emplace(value, lattice.value());
 
       if (latticeDump)
         op->setAttr("proteus.lattice",
-                    SparsityLattice::toAttr(lattice, op->getContext()));
+                    SparsityLattice::toAttr(lattice.value(), op->getContext()));
     }
 
     if (op->getNumResults() == 1) {
-      // Get the result value, make sure it's a ranked tensor type
-      auto result =
-          llvm::dyn_cast<mlir::RankedTensorType>(op->getResult(0).getType());
-      // Check if it exists or is an nullptr
-      if (!result || !result.hasStaticShape())
-        return;
+      auto lattice = SparsityLattice::defaultFromValue(op->getResult(0));
 
-      // Get the result's shape
-      auto shape = result.getShape();
-      // Create the shape of the lattice
-      llvm::SmallVector<uint64_t> s(shape.begin(), shape.end());
-      // Create a default all dense lattice
-      SparsityLattice lattice(s);
-
-      if (latticeDump)
+      if (latticeDump && lattice.has_value())
         op->setAttr("proteus.lattice",
-                    SparsityLattice::toAttr(lattice, op->getContext()));
+                    SparsityLattice::toAttr(lattice.value(), op->getContext()));
     }
   });
 
