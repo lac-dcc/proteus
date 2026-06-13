@@ -120,6 +120,19 @@ SparsityLattice *SparsityLattice::fromOp(mlir::Operation *op) {
   return nullptr;
 }
 
+std::optional<SparsityLattice>
+SparsityLattice::defaultFromValue(const mlir::Value &value) {
+  auto tensorType = llvm::dyn_cast<mlir::RankedTensorType>(value.getType());
+  if (!tensorType || !tensorType.hasStaticShape())
+    return std::nullopt;
+
+  auto shape = tensorType.getShape();
+  llvm::SmallVector<uint64_t> uShape(shape.begin(), shape.end());
+  auto lattice = SparsityLattice(uShape);
+
+  return lattice;
+}
+
 SparsityLattice
 SparsityLattice::constructFromAttr(const mlir::ArrayAttr &arrayAttr,
                                    const llvm::SmallVector<uint64_t> &shape) {

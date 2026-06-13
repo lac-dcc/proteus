@@ -8,6 +8,10 @@
 
 namespace proteus {
 
+class SparsityLattice;
+
+using LatticeMap = llvm::DenseMap<mlir::Value, SparsityLattice>;
+
 /**
  * @brief Sparsity lattice for a ranked tensor.
  *
@@ -136,6 +140,18 @@ public:
    * @return A heap-allocated SparsityLattice, or nullptr.
    */
   static SparsityLattice *fromOp(mlir::Operation *op);
+
+  /**
+   * @brief Creates a lattice from a ranked tensor value
+   *
+   * The returned lattice is fully dense. Returns std::nullopt if the operation
+   * has no ranked tensor result with a static shape.
+   *
+   * @param value The MLIR value to inspect.
+   * @return A SparsityLattice, or nullopt.
+   */
+  static std::optional<SparsityLattice>
+  defaultFromValue(const mlir::Value &value);
 
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &out,
                                        const SparsityLattice &lattice);

@@ -16,8 +16,21 @@ mlir::LogicalResult proteus::SeedPass::run(mlir::Block *block,
         if (dict) {
           // Reconstructure the lattice from an attribute
           auto lattice = SparsityLattice::fromAttr(dict);
+          if (lattice) {
+            state.try_emplace(arg, lattice.value());
+          } else {
+            auto lattice = SparsityLattice::defaultFromValue(
+                llvm::dyn_cast<mlir::Value>(arg));
+
+            if (lattice)
+              state.try_emplace(arg, lattice.value());
+          }
+        } else {
+          auto lattice = SparsityLattice::defaultFromValue(
+              llvm::dyn_cast<mlir::Value>(arg));
+
           if (lattice)
-            state.try_emplace(arg, *lattice);
+            state.try_emplace(arg, lattice.value());
         }
       }
   }
