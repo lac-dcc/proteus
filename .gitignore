@@ -46,6 +46,7 @@ docs/
 
 # Note Files
 *.md
+*.txt
 
 # Tests related files
 tests/.lit_test_times.txt
