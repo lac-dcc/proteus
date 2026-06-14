@@ -19,18 +19,6 @@ void SparsityPropagationAnalysis::runOnOperation() {
       return;
 
   getOperation().walk([&](mlir::Operation *op) {
-    for (auto value : op->getOperands()) {
-      auto lattice = SparsityLattice::defaultFromValue(value);
-
-      // Add the value to the block's lattice map
-      if (lattice.has_value())
-        SA.getState().try_emplace(value, lattice.value());
-
-      if (latticeDump)
-        op->setAttr("proteus.lattice",
-                    SparsityLattice::toAttr(lattice.value(), op->getContext()));
-    }
-
     if (op->getNumResults() == 1) {
       auto lattice = SparsityLattice::defaultFromValue(op->getResult(0));
 

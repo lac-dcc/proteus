@@ -7,6 +7,8 @@ using Result = mlir::LogicalResult;
 
 namespace proteus {
 
+class SparsityAnalysis;
+
 /**
  * @brief Seeds the lattice state from block arguments.
  */
@@ -15,10 +17,10 @@ struct SeedPass {
    * @brief Runs the seed pass over a block.
    *
    * @param block The MLIR block whose arguments are inspected.
-   * @param state The lattice map global state of the analysis to update.
+   * @param analysis The analysis object owning the lattice state to update.
    * @return success() if seeding completed without errors, failure() otherwise.
    */
-  static Result run(mlir::Block *block, LatticeMap &state);
+  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
 };
 
 /**
@@ -29,11 +31,11 @@ struct ForwardPass {
    * @brief Runs the forward propagation pass over a block.
    *
    * @param block The MLIR block to analyse.
-   * @param state The lattice map global state of the analysis to update.
+   * @param analysis The analysis object owning the lattice state to update.
    * @return success() if the pass completed without errors, failure()
    * otherwise.
    */
-  static Result run(mlir::Block *block, LatticeMap &state);
+  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
 };
 
 /**
@@ -44,11 +46,11 @@ struct LateralPass {
    * @brief Runs the lateral propagation pass over a block.
    *
    * @param block The MLIR block to analyse.
-   * @param state The lattice map global state of the analysis to update.
+   * @param analysis The analysis object owning the lattice state to update.
    * @return success() if the pass completed without errors, failure()
    * otherwise.
    */
-  static Result run(mlir::Block *block, LatticeMap &state);
+  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
 };
 
 /**
@@ -59,11 +61,11 @@ struct BackwardPass {
    * @brief Runs the backward propagation pass over a block.
    *
    * @param block The MLIR block to analyse.
-   * @param state The lattice map global state of the analysis to update.
+   * @param analysis The analysis object owning the lattice state to update.
    * @return success() if the pass completed without errors, failure()
    * otherwise.
    */
-  static Result run(mlir::Block *block, LatticeMap &state);
+  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
 };
 
 /**
@@ -113,6 +115,20 @@ public:
    */
   const SparsityLattice *getState(const mlir::Value &value) const;
 
+  /**
+   * @brief Dispatcher function for inferring sparsity on a specific operation.
+   *
+   * @param op The operation to visit.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  Result visit(mlir::Operation &op);
+
+  /**
+   * @brief Infers sparsity for a linalg.matmul operation.
+   *
+   * @param op The matmul op to analyse.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
 private:
   /**
    * @brief Dispatches a single analysis pass of type @p PassType.
@@ -122,14 +138,6 @@ private:
    * @return success() or failure() as returned by PassType::run.
    */
   template <typename PassType> Result run(mlir::Block *block);
-
-  /**
-   * @brief Dispatcher function for inferring sparsity on a specific operation.
-   *
-   * @param op The operation to visit.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  Result visit(mlir::Operation *op);
 
   /**
    * @brief Infers sparsity for a linalg.matmul operation.

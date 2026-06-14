@@ -5,7 +5,8 @@
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/TypeSwitch.h"
 
-Result proteus::SeedPass::run(mlir::Block *block, LatticeMap &state) {
+Result proteus::SeedPass::run(mlir::Block *block, SparsityAnalysis &analysis) {
+  LatticeMap &state = analysis.getState();
 
   // Check for attributes in the arguments of a function
   if (block->isEntryBlock()) {
@@ -43,19 +44,24 @@ Result proteus::SeedPass::run(mlir::Block *block, LatticeMap &state) {
   return mlir::success();
 }
 
-Result proteus::ForwardPass::run(mlir::Block *block, LatticeMap &state) {
-  for ([[maybe_unused]] auto &op : block->getOperations()) {
-    // TODO: plug the visit function to visit each operation here
+Result proteus::ForwardPass::run(mlir::Block *block,
+                                 SparsityAnalysis &analysis) {
+  for (auto &op : block->getOperations()) {
+    if (analysis.visit(op).failed())
+      return op.emitError("Proteus failed to properly visit op:")
+             << op.getName();
   }
 
   return mlir::success();
 }
 
-Result proteus::LateralPass::run(mlir::Block *block, LatticeMap &state) {
+Result proteus::LateralPass::run(mlir::Block *block,
+                                 SparsityAnalysis &analysis) {
   return mlir::success();
 }
 
-Result proteus::BackwardPass::run(mlir::Block *block, LatticeMap &state) {
+Result proteus::BackwardPass::run(mlir::Block *block,
+                                  SparsityAnalysis &analysis) {
   return mlir::success();
 }
 
@@ -107,19 +113,21 @@ proteus::SparsityAnalysis::getState(const mlir::Value &value) const {
 
 template <typename PassType>
 Result proteus::SparsityAnalysis::run(mlir::Block *block) {
-  return PassType::run(block, state);
+  return PassType::run(block, *this);
 }
 
-Result proteus::SparsityAnalysis::visit(mlir::Operation *op) {
-  if (op->getNumResults() != 1)
-    return mlir::success();
+Result proteus::SparsityAnalysis::visit(mlir::Operation &op) {
+  if (op.getNumResults() != 1)
+    return op.emitError("Proteus currently does not support operations with a "
+                        "number of results larger than 1.");
+  ;
 
-  auto lattice = SparsityLattice::defaultFromValue(op->getResult(0));
+  auto lattice = SparsityLattice::defaultFromValue(op.getResult(0));
 
   if (lattice.has_value())
-    state.try_emplace(op->getResult(0), lattice.value());
+    state.try_emplace(op.getResult(0), lattice.value());
 
-  mlir::TypeSwitch<mlir::Operation *>(op)
+  mlir::TypeSwitch<mlir::Operation *>(&op)
       .Case<mlir::linalg::MatmulOp /* ,mlir::linalg::ManyOtherOps */>(
           [&](auto typedOp) { visitOp(typedOp); })
       .Default([](auto) {});
@@ -129,4 +137,4 @@ Result proteus::SparsityAnalysis::visit(mlir::Operation *op) {
 
 Result proteus::SparsityAnalysis::visitOp(mlir::linalg::MatmulOp op) {
   return mlir::success();
-};
+}
