@@ -123,3 +123,42 @@ TEST(SparsityLattice, FromAttrReturnsNulloptWhenKeyMissing) {
   auto emptyDict = mlir::DictionaryAttr::get(&ctx, {});
   EXPECT_FALSE(proteus::SparsityLattice::fromAttr(emptyDict).has_value());
 }
+
+TEST(SparsityLattice, FromAttrRoundTripFullyDense) {
+  mlir::MLIRContext ctx;
+  proteus::SparsityLattice original({4, 8});
+  auto attr = proteus::SparsityLattice::toAttr(original, &ctx);
+  auto str = mlir::StringAttr::get(&ctx, "proteus.lattice");
+  auto dict = mlir::DictionaryAttr::get(&ctx, {{str, attr}});
+  auto result = proteus::SparsityLattice::fromAttr(dict);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), original);
+}
+
+TEST(SparsityLattice, FromAttrRoundTripWithSparseBits) {
+  mlir::MLIRContext ctx;
+  proteus::SparsityLattice original({4, 8});
+  original[0].reset(1);
+  original[0].reset(3);
+  original[1].reset(5);
+  auto attr = proteus::SparsityLattice::toAttr(original, &ctx);
+  auto str = mlir::StringAttr::get(&ctx, "proteus.lattice");
+  auto dict = mlir::DictionaryAttr::get(&ctx, {{str, attr}});
+  auto result = proteus::SparsityLattice::fromAttr(dict);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), original);
+}
+
+TEST(SparsityLattice, FromAttrRoundTripAcrossWordBoundary) {
+  mlir::MLIRContext ctx;
+  llvm::SmallVector<uint64_t> shape{80u};
+  proteus::SparsityLattice original(shape);
+  original[0].reset(63);
+  original[0].reset(64);
+  auto attr = proteus::SparsityLattice::toAttr(original, &ctx);
+  auto str = mlir::StringAttr::get(&ctx, "proteus.lattice");
+  auto dict = mlir::DictionaryAttr::get(&ctx, {{str, attr}});
+  auto result = proteus::SparsityLattice::fromAttr(dict);
+  ASSERT_TRUE(result.has_value());
+  EXPECT_EQ(result.value(), original);
+}

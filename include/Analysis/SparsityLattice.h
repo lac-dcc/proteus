@@ -147,9 +147,7 @@ public:
 private:
   llvm::SmallVector<llvm::BitVector> sparsities;
 
-  static SparsityLattice
-  constructFromAttr(const mlir::ArrayAttr &arrayAttr,
-                    const llvm::SmallVector<uint64_t> &shape);
+  static SparsityLattice constructFromAttr(const mlir::ArrayAttr &arrayAttr);
 };
 
 } // namespace proteus
