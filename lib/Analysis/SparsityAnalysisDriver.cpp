@@ -67,19 +67,27 @@ Result proteus::BackwardPass::run(mlir::Block *block,
 
 Result proteus::SparsityAnalysis::run(mlir::Block *block) {
   if (run<SeedPass>(block).failed()) {
-    // TODO: crash and output something, currently seeding will never fail
+    llvm::errs() << "[SparsityAnalysis] SeedPass failed on block: "
+                 << block->getParentOp()->getName() << "\n";
+    llvm_unreachable("SeedPass should never fail");
   }
 
   if (run<ForwardPass>(block).failed()) {
-    // TODO: crash and output something
+    llvm::errs() << "[SparsityAnalysis] ForwardPass failed on block: "
+                 << block->getParentOp()->getName() << "\n";
+    llvm_unreachable("ForwardPass should never fail");
   }
 
   if (run<LateralPass>(block).failed()) {
-    // TODO: crash and output something
+    llvm::errs() << "[SparsityAnalysis] LateralPass failed on block: "
+                 << block->getParentOp()->getName() << "\n";
+    llvm_unreachable("LateralPass should never fail");
   }
 
   if (run<BackwardPass>(block).failed()) {
-    // TODO: crash and output something
+    llvm::errs() << "[SparsityAnalysis] BackwardPass failed on block: "
+                 << block->getParentOp()->getName() << "\n";
+    llvm_unreachable("BackwardPass should never fail");
   }
 
   return mlir::success();
@@ -118,19 +126,18 @@ Result proteus::SparsityAnalysis::run(mlir::Block *block) {
 
 Result proteus::SparsityAnalysis::visit(mlir::Operation &op) {
   if (op.getNumResults() != 1)
-    return op.emitError("Proteus currently does not support operations with a "
-                        "number of results larger than 1.");
-  ;
+    return mlir::success();
 
   auto lattice = SparsityLattice::defaultFromValue(op.getResult(0));
 
-  if (lattice.has_value())
+  if (lattice.has_value()) {
     state.try_emplace(op.getResult(0), lattice.value());
 
-  mlir::TypeSwitch<mlir::Operation *>(&op)
-      .Case<mlir::linalg::MatmulOp /* ,mlir::linalg::ManyOtherOps */>(
-          [&](auto typedOp) { visitOp(typedOp); })
-      .Default([](auto) {});
+    mlir::TypeSwitch<mlir::Operation *>(&op)
+        .Case<mlir::linalg::MatmulOp /* ,mlir::linalg::ManyOtherOps */>(
+            [&](auto typedOp) { visitOp(typedOp); })
+        .Default([](auto) {});
+  }
 
   return mlir::success();
 }
