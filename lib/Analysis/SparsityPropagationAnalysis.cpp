@@ -1,22 +1,35 @@
 #include "Analysis/SparsityPropagationAnalysis.h"
 
+#include "Analysis/SparsityAnalysisDriver.h"
 #include "Analysis/SparsityLattice.h"
+#include "Analysis/Utilities.h"
 
+#include "mlir/IR/AsmState.h"
+#include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
+#include "llvm/ADT/DenseMap.h"
 
 namespace proteus {
 void SparsityPropagationAnalysis::runOnOperation() {
-  getOperation().walk([this](mlir::Operation *op) {
-    auto *lattice = SparsityLattice::fromOp(op);
 
-    if (!lattice)
+  SparsityAnalysis SA;
+
+  for (auto &block : getOperation().getBody())
+    if (SA.run(&block).failed())
       return;
 
-    if (latticeDump)
-      op->setAttr("spa", SparsityLattice::toAttr(*lattice, op->getContext()));
+  getOperation().walk([&](mlir::Operation *op) {
+    if (op->getNumResults() == 1) {
+      auto lattice = SparsityLattice::defaultFromValue(op->getResult(0));
 
-    delete lattice;
+      if (latticeDump && lattice.has_value())
+        op->setAttr("proteus.lattice",
+                    SparsityLattice::toAttr(lattice.value(), op->getContext()));
+    }
   });
+
+  if (stateDump)
+    printState(SA.getState());
 }
 
 std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis() {

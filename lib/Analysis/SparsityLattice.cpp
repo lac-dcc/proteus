@@ -85,16 +85,101 @@ mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
   return mlir::ArrayAttr::get(ctx, bvAttrs);
 }
 
-SparsityLattice *SparsityLattice::fromOp(mlir::Operation *op) {
-  for (auto result : op->getResults()) {
-    auto tensorType = llvm::dyn_cast<mlir::RankedTensorType>(result.getType());
-    if (!tensorType || !tensorType.hasStaticShape())
-      continue;
-    auto shape = tensorType.getShape();
-    llvm::SmallVector<uint64_t> uShape(shape.begin(), shape.end());
-    return new SparsityLattice(uShape);
+std::optional<SparsityLattice>
+SparsityLattice::fromAttr(const mlir::DictionaryAttr &dict) {
+  auto sparsityAttr = dict.get("proteus.lattice");
+
+  if (!sparsityAttr)
+    return std::nullopt;
+
+  if (llvm::isa<mlir::ArrayAttr>(sparsityAttr)) {
+    auto arrayAttr = llvm::cast<mlir::ArrayAttr>(sparsityAttr);
+    return constructFromAttr(arrayAttr);
   }
-  return nullptr;
+
+  return std::nullopt;
+}
+
+std::optional<SparsityLattice>
+SparsityLattice::defaultFromValue(const mlir::Value &value) {
+  auto tensorType = llvm::dyn_cast<mlir::RankedTensorType>(value.getType());
+  if (!tensorType || !tensorType.hasStaticShape())
+    return std::nullopt;
+
+  auto shape = tensorType.getShape();
+  llvm::SmallVector<uint64_t> uShape(shape.begin(), shape.end());
+  auto lattice = SparsityLattice(uShape);
+
+  return lattice;
+}
+
+SparsityLattice
+SparsityLattice::constructFromAttr(const mlir::ArrayAttr &arrayAttr) {
+  // Setup the shape of the lattice initially
+  llvm::SmallVector<uint64_t> shape(arrayAttr.size());
+
+  // For each item within the proteus lattice attribute,
+  // we will assign a bitvector
+  for (auto [i, dimAttr] : llvm::enumerate(arrayAttr)) {
+    auto dimDict = llvm::cast<mlir::DictionaryAttr>(dimAttr);
+    auto dimSize = static_cast<uint64_t>(
+        llvm::cast<mlir::IntegerAttr>(dimDict.get("size")).getInt());
+    shape[i] = dimSize;
+  }
+
+  // Construct the lattice with the above shape derived from the
+  // attribute
+  SparsityLattice lattice(shape);
+
+  // For each bitvector we need to see which bits we need to set
+  for (size_t i = 0; i < arrayAttr.size(); ++i) {
+    auto dimDict = llvm::cast<mlir::DictionaryAttr>(arrayAttr[i]);
+    uint64_t size = static_cast<uint64_t>(
+        llvm::cast<mlir::IntegerAttr>(dimDict.get("size")).getInt());
+    auto words = llvm::cast<mlir::DenseI64ArrayAttr>(dimDict.get("words"));
+
+    // Grab the bitvector for the default lattice
+    auto &bv = lattice[i];
+    // And reset it because the default behaviour is for the bitvector
+    // to be all true
+    bv.reset();
+
+    // Iterate through each word in the attribute
+    for (size_t w = 0; w < static_cast<size_t>(words.size()); ++w) {
+      uint64_t word = static_cast<uint64_t>(words[w]);
+      // w * 64 + b represents the global offset in the case where there's
+      // multiple words in a single bitvector, meaning the bitvector has
+      // length larger than 64. So the conditional in the `if` statement
+      // becomes twofold, not exceeding 64 bits for a single word and
+      // not exceeding global size for the entire bitvector
+      for (unsigned b = 0; b < 64 && w * 64 + b < size; ++b)
+        // If the bit b is set in the word, then set that bit in the bitvector
+        if ((word >> b) & 1u)
+          bv.set(w * 64 + b);
+    }
+  }
+
+  return lattice;
+}
+
+llvm::raw_ostream &operator<<(llvm::raw_ostream &out,
+                              const SparsityLattice &lattice) {
+  out << "SparsityLattice<";
+  for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
+    if (d > 0)
+      out << "x";
+    out << lattice.sparsities[d].size();
+  }
+  out << "> {\n";
+  for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
+    const auto &bv = lattice.sparsities[d];
+    out << "  a[" << d << "]: ";
+    for (uint64_t i = 0; i < bv.size(); ++i)
+      out << (bv[i] ? '1' : '0');
+    out << "  (" << bv.size() << " slices)\n";
+  }
+  out << "}";
+  return out;
 }
 
 } // namespace proteus
