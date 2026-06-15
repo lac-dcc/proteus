@@ -10,15 +10,17 @@ void proteus::printState(
   for (const auto &[val, lattice] : state) {
     os << "  ";
     val.print(os);
-    if (auto ba = llvm::dyn_cast<mlir::BlockArgument>(val))
+    if (auto ba = llvm::dyn_cast<mlir::BlockArgument>(val)) {
       os << " (%arg" << ba.getArgNumber() << ")";
+    }
     os << "\n  ╰─▶ ";
     std::string latBuf;
     llvm::raw_string_ostream latOs(latBuf);
     latOs << lattice;
     latOs.flush();
-    for (char c : latBuf)
+    for (char c : latBuf) {
       os << (c == '\n' ? "\n      " : llvm::StringRef(&c, 1));
+    }
     os << "\n";
   }
   os << "======================\n";

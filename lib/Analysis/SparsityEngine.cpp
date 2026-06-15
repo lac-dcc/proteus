@@ -45,8 +45,9 @@ proteus::SparsityLattice *
 proteus::SparsityEngine::getState(const mlir::Value &value) {
   auto it = state.find(value);
 
-  if (it != state.end())
+  if (it != state.end()) {
     return &it->second;
+  }
 
   return nullptr;
 }
@@ -55,8 +56,9 @@ const proteus::SparsityLattice *
 proteus::SparsityEngine::getState(const mlir::Value &value) const {
   auto it = state.find(value);
 
-  if (it != state.end())
+  if (it != state.end()) {
     return &it->second;
+  }
 
   return nullptr;
 }

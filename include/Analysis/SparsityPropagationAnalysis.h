@@ -16,16 +16,18 @@ struct SparsityPropagationAnalysis
   SparsityPropagationAnalysis()
       : mlir::OperationPass<mlir::func::FuncOp>(
             mlir::TypeID::get<SparsityPropagationAnalysis>()) {}
-  llvm::StringRef getName() const override {
+  [[nodiscard]] llvm::StringRef getName() const override {
     return "SparsityPropagationAnalysis";
   }
-  llvm::StringRef getArgument() const override { return "spa-analysis"; }
-  llvm::StringRef getDescription() const override {
+  [[nodiscard]] llvm::StringRef getArgument() const override {
+    return "spa-analysis";
+  }
+  [[nodiscard]] llvm::StringRef getDescription() const override {
     return "Tensor Slice Sparsity Propagation Analysis";
   }
   void runOnOperation() override;
 
-  std::unique_ptr<mlir::Pass> clonePass() const override {
+  [[nodiscard]] std::unique_ptr<mlir::Pass> clonePass() const override {
     auto pass = std::make_unique<SparsityPropagationAnalysis>();
     pass->copyOptionValuesFrom(this);
     return pass;
