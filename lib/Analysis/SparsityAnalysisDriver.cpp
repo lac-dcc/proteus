@@ -128,7 +128,15 @@ Result proteus::SparsityAnalysis::visit(mlir::Operation &op) {
   if (op.getNumResults() != 1)
     return mlir::success();
 
-  auto lattice = SparsityLattice::defaultFromValue(op.getResult(0));
+  std::optional<SparsityLattice> lattice;
+
+  if (op.hasAttr("proteus.lattice")) {
+    auto attr = op.getAttr("proteus.lattice");
+    auto arrayAttr = llvm::cast<mlir::ArrayAttr>(attr);
+    lattice = SparsityLattice::fromAttr(arrayAttr);
+  } else {
+    lattice = SparsityLattice::defaultFromValue(op.getResult(0));
+  }
 
   if (lattice.has_value()) {
     state.try_emplace(op.getResult(0), lattice.value());
@@ -143,5 +151,22 @@ Result proteus::SparsityAnalysis::visit(mlir::Operation &op) {
 }
 
 Result proteus::SparsityAnalysis::visitOp(mlir::linalg::MatmulOp op) {
+  auto *lhs = getState(op.getOperand(0));
+  auto *rhs = getState(op.getOperand(1));
+  auto *res = getState(op.getResult(0));
+
+  // We expect that all lattices are contained within the lattice map at this
+  // point, if not, we probably have not implemented a tranfer function that
+  // could yield results into a matmul op
+  if (!lhs || !rhs || !res)
+    return op.emitError("The lattices are not propagated"
+                        "properly in op: ")
+           << op.getOperationName();
+
+  // We want to keep any sparsity already in the result, this could happen
+  // if an attribute is set on a matmul operation
+  (*res)[0] &= (*lhs)[0];
+  (*res)[1] &= (*rhs)[1];
+
   return mlir::success();
 }

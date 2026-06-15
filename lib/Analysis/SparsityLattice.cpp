@@ -86,6 +86,11 @@ mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
 }
 
 std::optional<SparsityLattice>
+SparsityLattice::fromAttr(const mlir::ArrayAttr &arrayAttr) {
+  return constructFromAttr(arrayAttr);
+}
+
+std::optional<SparsityLattice>
 SparsityLattice::fromAttr(const mlir::DictionaryAttr &dict) {
   auto sparsityAttr = dict.get("proteus.lattice");
 

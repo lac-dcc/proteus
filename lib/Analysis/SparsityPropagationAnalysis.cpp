@@ -20,11 +20,11 @@ void SparsityPropagationAnalysis::runOnOperation() {
 
   getOperation().walk([&](mlir::Operation *op) {
     if (op->getNumResults() == 1) {
-      auto lattice = SparsityLattice::defaultFromValue(op->getResult(0));
+      auto *lattice = SA.getState(op->getResult(0));
 
-      if (latticeDump && lattice.has_value())
+      if (latticeDump && lattice)
         op->setAttr("proteus.lattice",
-                    SparsityLattice::toAttr(lattice.value(), op->getContext()));
+                    SparsityLattice::toAttr(*lattice, op->getContext()));
     }
   });
 
