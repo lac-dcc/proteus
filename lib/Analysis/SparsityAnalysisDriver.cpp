@@ -142,8 +142,10 @@ Result proteus::SparsityAnalysis::visit(mlir::Operation &op) {
     state.try_emplace(op.getResult(0), lattice.value());
 
     mlir::TypeSwitch<mlir::Operation *>(&op)
-        .Case<mlir::linalg::MatmulOp,
-              mlir::linalg::AddOp /* ,mlir::linalg::ManyOtherOps */>(
+        .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp, mlir::linalg::AbsOp,
+              mlir::linalg::CeilOp, mlir::linalg::FloorOp, mlir::linalg::NegfOp,
+              mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp
+              /*, mlir::linalg::ManyOtherOps */>(
             [&](auto typedOp) { visitOp(typedOp); })
         .Default([](auto) {});
   }
@@ -193,6 +195,92 @@ Result proteus::SparsityAnalysis::visitOp(mlir::linalg::AddOp op) {
     // Again we need to respect any preexisting lattices
     (*res)[i] = temp;
   }
+
+  return mlir::success();
+}
+
+Result proteus::SparsityAnalysis::visitOp(mlir::linalg::AbsOp op) {
+  auto *oper = getState(op->getOperand(0));
+  auto *res = getState(op->getOpResult(0));
+
+  if (!oper || !res)
+    return op.emitError("The lattices are not propagated"
+                        "properly in op: ")
+           << op.getOperationName();
+
+  for (std::size_t i = 0; i < res->rank(); i++) {
+    (*res)[i] = (*oper)[i];
+  }
+
+  return mlir::success();
+}
+
+Result proteus::SparsityAnalysis::visitOp(mlir::linalg::CeilOp op) {
+  auto *oper = getState(op->getOperand(0));
+  auto *res = getState(op->getOpResult(0));
+
+  if (!oper || !res)
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << op.getOperationName();
+
+  for (std::size_t i = 0; i < res->rank(); i++)
+    (*res)[i] = (*oper)[i];
+
+  return mlir::success();
+}
+
+Result proteus::SparsityAnalysis::visitOp(mlir::linalg::FloorOp op) {
+  auto *oper = getState(op->getOperand(0));
+  auto *res = getState(op->getOpResult(0));
+
+  if (!oper || !res)
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << op.getOperationName();
+
+  for (std::size_t i = 0; i < res->rank(); i++)
+    (*res)[i] = (*oper)[i];
+
+  return mlir::success();
+}
+
+Result proteus::SparsityAnalysis::visitOp(mlir::linalg::NegfOp op) {
+  auto *oper = getState(op->getOperand(0));
+  auto *res = getState(op->getOpResult(0));
+
+  if (!oper || !res)
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << op.getOperationName();
+
+  for (std::size_t i = 0; i < res->rank(); i++)
+    (*res)[i] = (*oper)[i];
+
+  return mlir::success();
+}
+
+Result proteus::SparsityAnalysis::visitOp(mlir::linalg::DivOp op) {
+  auto *oper = getState(op->getOperand(0));
+  auto *res = getState(op->getOpResult(0));
+
+  if (!oper || !res)
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << op.getOperationName();
+
+  for (std::size_t i = 0; i < res->rank(); i++)
+    (*res)[i] = (*oper)[i];
+
+  return mlir::success();
+}
+
+Result proteus::SparsityAnalysis::visitOp(mlir::linalg::DivUnsignedOp op) {
+  auto *oper = getState(op->getOperand(0));
+  auto *res = getState(op->getOpResult(0));
+
+  if (!oper || !res)
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << op.getOperationName();
+
+  for (std::size_t i = 0; i < res->rank(); i++)
+    (*res)[i] = (*oper)[i];
 
   return mlir::success();
 }

@@ -155,6 +155,54 @@ private:
    */
   Result visitOp(mlir::linalg::AddOp op);
 
+  /**
+   * @brief Infers sparsity for a linalg.abs operation.
+   *
+   * @param op The op to analyse.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  Result visitOp(mlir::linalg::AbsOp op);
+
+  /**
+   * @brief Infers sparsity for a linalg.ceil operation.
+   *
+   * @param op The op to analyse.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  Result visitOp(mlir::linalg::CeilOp op);
+
+  /**
+   * @brief Infers sparsity for a linalg.floor operation.
+   *
+   * @param op The op to analyse.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  Result visitOp(mlir::linalg::FloorOp op);
+
+  /**
+   * @brief Infers sparsity for a linalg.negf operation.
+   *
+   * @param op The op to analyse.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  Result visitOp(mlir::linalg::NegfOp op);
+
+  /**
+   * @brief Infers sparsity for a linalg.div operation.
+   *
+   * @param op The op to analyse.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  Result visitOp(mlir::linalg::DivOp op);
+
+  /**
+   * @brief Infers sparsity for a linalg.div_unsigned operation.
+   *
+   * @param op The op to analyse.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  Result visitOp(mlir::linalg::DivUnsignedOp op);
+
   LatticeMap state;
 };
 } // namespace proteus
