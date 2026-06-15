@@ -4,7 +4,7 @@ using Result = mlir::LogicalResult;
 
 namespace proteus {
 
-class SparsityAnalysis;
+class SparsityEngine;
 
 /**
  * @brief Propagates sparsity information backward through a block.
@@ -18,6 +18,6 @@ struct BackwardPass {
    * @return success() if the pass completed without errors, failure()
    * otherwise.
    */
-  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
+  static Result run(mlir::Block *block, SparsityEngine &analysis);
 };
 } // namespace proteus

@@ -3,6 +3,6 @@
 #include "mlir/IR/Value.h"
 
 Result proteus::BackwardPass::run(mlir::Block *block,
-                                  SparsityAnalysis &analysis) {
+                                  SparsityEngine &analysis) {
   return mlir::success();
 }

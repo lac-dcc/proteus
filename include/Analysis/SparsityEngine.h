@@ -6,13 +6,13 @@ using Result = mlir::LogicalResult;
 
 namespace proteus {
 
-class SparsityAnalysis;
+class SparsityEngine;
 
 /**
  * @brief Orchestrates the full Sparsity Propagation Analysis (SPA) over a
  * block.
  */
-class SparsityAnalysis {
+class SparsityEngine {
 public:
   /**
    * @brief Runs the complete SPA pipeline over a block.

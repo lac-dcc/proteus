@@ -1,12 +1,12 @@
 #include "Analysis/SeedPass.h"
 
-#include "Analysis/SparsityAnalysisDriver.h"
+#include "Analysis/SparsityEngine.h"
 #include "Analysis/SparsityLattice.h"
 
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/IR/Value.h"
 
-Result proteus::SeedPass::run(mlir::Block *block, SparsityAnalysis &analysis) {
+Result proteus::SeedPass::run(mlir::Block *block, SparsityEngine &analysis) {
   LatticeMap &state = analysis.getState();
 
   // Check for attributes in the arguments of a function

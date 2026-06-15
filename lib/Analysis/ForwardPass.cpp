@@ -1,12 +1,11 @@
 #include "Analysis/ForwardPass.h"
 
-#include "Analysis/SparsityAnalysisDriver.h"
+#include "Analysis/SparsityEngine.h"
 
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/TypeSwitch.h"
 
-Result proteus::ForwardPass::run(mlir::Block *block,
-                                 SparsityAnalysis &analysis) {
+Result proteus::ForwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
   for (auto &op : block->getOperations()) {
     if (analysis.visit<ForwardPass>(op).failed())
       return op.emitError("Proteus failed to properly visit op:")
@@ -17,7 +16,7 @@ Result proteus::ForwardPass::run(mlir::Block *block,
 }
 
 Result proteus::ForwardPass::visit(mlir::Operation &op,
-                                   SparsityAnalysis &analysis) {
+                                   SparsityEngine &analysis) {
   if (op.getNumResults() != 1)
     return mlir::success();
 
@@ -47,7 +46,7 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
 }
 
 Result proteus::ForwardPass::visitOp(mlir::linalg::MatmulOp op,
-                                     SparsityAnalysis &analysis) {
+                                     SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op.getOperand(0));
   auto *rhs = analysis.getState(op.getOperand(1));
   auto *res = analysis.getState(op.getResult(0));
@@ -69,7 +68,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::MatmulOp op,
 }
 
 Result proteus::ForwardPass::visitOp(mlir::linalg::AddOp op,
-                                     SparsityAnalysis &analysis) {
+                                     SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op.getOperand(0));
   auto *rhs = analysis.getState(op.getOperand(1));
   auto *res = analysis.getState(op.getResult(0));
@@ -95,7 +94,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::AddOp op,
 }
 
 Result proteus::ForwardPass::visitOp(mlir::linalg::AbsOp op,
-                                     SparsityAnalysis &analysis) {
+                                     SparsityEngine &analysis) {
   auto *oper = analysis.getState(op->getOperand(0));
   auto *res = analysis.getState(op->getOpResult(0));
 
@@ -112,7 +111,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::AbsOp op,
 }
 
 Result proteus::ForwardPass::visitOp(mlir::linalg::CeilOp op,
-                                     SparsityAnalysis &analysis) {
+                                     SparsityEngine &analysis) {
   auto *oper = analysis.getState(op->getOperand(0));
   auto *res = analysis.getState(op->getOpResult(0));
 
@@ -127,7 +126,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::CeilOp op,
 }
 
 Result proteus::ForwardPass::visitOp(mlir::linalg::FloorOp op,
-                                     SparsityAnalysis &analysis) {
+                                     SparsityEngine &analysis) {
   auto *oper = analysis.getState(op->getOperand(0));
   auto *res = analysis.getState(op->getOpResult(0));
 
@@ -142,7 +141,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::FloorOp op,
 }
 
 Result proteus::ForwardPass::visitOp(mlir::linalg::NegfOp op,
-                                     SparsityAnalysis &analysis) {
+                                     SparsityEngine &analysis) {
   auto *oper = analysis.getState(op->getOperand(0));
   auto *res = analysis.getState(op->getOpResult(0));
 
@@ -157,7 +156,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::NegfOp op,
 }
 
 Result proteus::ForwardPass::visitOp(mlir::linalg::DivOp op,
-                                     SparsityAnalysis &analysis) {
+                                     SparsityEngine &analysis) {
   auto *oper = analysis.getState(op->getOperand(0));
   auto *res = analysis.getState(op->getOpResult(0));
 
@@ -172,7 +171,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::DivOp op,
 }
 
 Result proteus::ForwardPass::visitOp(mlir::linalg::DivUnsignedOp op,
-                                     SparsityAnalysis &analysis) {
+                                     SparsityEngine &analysis) {
   auto *oper = analysis.getState(op->getOperand(0));
   auto *res = analysis.getState(op->getOpResult(0));
 

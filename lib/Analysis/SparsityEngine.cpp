@@ -1,4 +1,4 @@
-#include "Analysis/SparsityAnalysisDriver.h"
+#include "Analysis/SparsityEngine.h"
 
 #include "Analysis/BackwardPass.h"
 #include "Analysis/ForwardPass.h"
@@ -7,27 +7,27 @@
 
 #include "mlir/IR/Value.h"
 
-Result proteus::SparsityAnalysis::run(mlir::Block *block) {
+Result proteus::SparsityEngine::run(mlir::Block *block) {
   if (run<SeedPass>(block).failed()) {
-    llvm::errs() << "[SparsityAnalysis] SeedPass failed on block: "
+    llvm::errs() << "[SparsityEngine] SeedPass failed on block: "
                  << block->getParentOp()->getName() << "\n";
     llvm_unreachable("SeedPass should never fail");
   }
 
   if (run<ForwardPass>(block).failed()) {
-    llvm::errs() << "[SparsityAnalysis] ForwardPass failed on block: "
+    llvm::errs() << "[SparsityEngine] ForwardPass failed on block: "
                  << block->getParentOp()->getName() << "\n";
     llvm_unreachable("ForwardPass should never fail");
   }
 
   if (run<LateralPass>(block).failed()) {
-    llvm::errs() << "[SparsityAnalysis] LateralPass failed on block: "
+    llvm::errs() << "[SparsityEngine] LateralPass failed on block: "
                  << block->getParentOp()->getName() << "\n";
     llvm_unreachable("LateralPass should never fail");
   }
 
   if (run<BackwardPass>(block).failed()) {
-    llvm::errs() << "[SparsityAnalysis] BackwardPass failed on block: "
+    llvm::errs() << "[SparsityEngine] BackwardPass failed on block: "
                  << block->getParentOp()->getName() << "\n";
     llvm_unreachable("BackwardPass should never fail");
   }
@@ -35,14 +35,14 @@ Result proteus::SparsityAnalysis::run(mlir::Block *block) {
   return mlir::success();
 }
 
-const proteus::LatticeMap &proteus::SparsityAnalysis::getState() const {
+const proteus::LatticeMap &proteus::SparsityEngine::getState() const {
   return state;
 }
 
-proteus::LatticeMap &proteus::SparsityAnalysis::getState() { return state; }
+proteus::LatticeMap &proteus::SparsityEngine::getState() { return state; }
 
 proteus::SparsityLattice *
-proteus::SparsityAnalysis::getState(const mlir::Value &value) {
+proteus::SparsityEngine::getState(const mlir::Value &value) {
   auto it = state.find(value);
 
   if (it != state.end())
@@ -52,7 +52,7 @@ proteus::SparsityAnalysis::getState(const mlir::Value &value) {
 }
 
 const proteus::SparsityLattice *
-proteus::SparsityAnalysis::getState(const mlir::Value &value) const {
+proteus::SparsityEngine::getState(const mlir::Value &value) const {
   auto it = state.find(value);
 
   if (it != state.end())
@@ -62,14 +62,14 @@ proteus::SparsityAnalysis::getState(const mlir::Value &value) const {
 }
 
 template <typename PassType>
-Result proteus::SparsityAnalysis::run(mlir::Block *block) {
+Result proteus::SparsityEngine::run(mlir::Block *block) {
   return PassType::run(block, *this);
 }
 
 template <typename PassType>
-Result proteus::SparsityAnalysis::visit(mlir::Operation &op) {
+Result proteus::SparsityEngine::visit(mlir::Operation &op) {
   return PassType::visit(op, *this);
 }
 
 template Result
-proteus::SparsityAnalysis::visit<proteus::ForwardPass>(mlir::Operation &);
+proteus::SparsityEngine::visit<proteus::ForwardPass>(mlir::Operation &);

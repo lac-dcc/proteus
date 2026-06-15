@@ -2,7 +2,6 @@
 
 #include "mlir/IR/Value.h"
 
-Result proteus::LateralPass::run(mlir::Block *block,
-                                 SparsityAnalysis &analysis) {
+Result proteus::LateralPass::run(mlir::Block *block, SparsityEngine &analysis) {
   return mlir::success();
 }

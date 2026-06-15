@@ -1,6 +1,6 @@
 #include "Analysis/SparsityPropagationAnalysis.h"
 
-#include "Analysis/SparsityAnalysisDriver.h"
+#include "Analysis/SparsityEngine.h"
 #include "Analysis/SparsityLattice.h"
 #include "Analysis/Utilities.h"
 
@@ -12,7 +12,7 @@
 namespace proteus {
 void SparsityPropagationAnalysis::runOnOperation() {
 
-  SparsityAnalysis SA;
+  SparsityEngine SA;
 
   for (auto &block : getOperation().getBody())
     if (SA.run(&block).failed())

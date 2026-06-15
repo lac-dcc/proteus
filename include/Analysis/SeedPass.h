@@ -4,7 +4,7 @@ using Result = mlir::LogicalResult;
 
 namespace proteus {
 
-class SparsityAnalysis;
+class SparsityEngine;
 
 /**
  * @brief Seeds the lattice state from block arguments.
@@ -17,6 +17,6 @@ struct SeedPass {
    * @param analysis The analysis object owning the lattice state to update.
    * @return success() if seeding completed without errors, failure() otherwise.
    */
-  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
+  static Result run(mlir::Block *block, SparsityEngine &analysis);
 };
 } // namespace proteus
