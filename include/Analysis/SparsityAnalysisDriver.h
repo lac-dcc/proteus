@@ -147,6 +147,14 @@ private:
    */
   Result visitOp(mlir::linalg::MatmulOp op);
 
+  /**
+   * @brief Infers sparsity for a linalg.add operation.
+   *
+   * @param op The add op to analyse.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  Result visitOp(mlir::linalg::AddOp op);
+
   LatticeMap state;
 };
 } // namespace proteus

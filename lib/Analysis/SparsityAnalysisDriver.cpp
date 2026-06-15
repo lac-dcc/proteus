@@ -142,7 +142,8 @@ Result proteus::SparsityAnalysis::visit(mlir::Operation &op) {
     state.try_emplace(op.getResult(0), lattice.value());
 
     mlir::TypeSwitch<mlir::Operation *>(&op)
-        .Case<mlir::linalg::MatmulOp /* ,mlir::linalg::ManyOtherOps */>(
+        .Case<mlir::linalg::MatmulOp,
+              mlir::linalg::AddOp /* ,mlir::linalg::ManyOtherOps */>(
             [&](auto typedOp) { visitOp(typedOp); })
         .Default([](auto) {});
   }
@@ -167,6 +168,31 @@ Result proteus::SparsityAnalysis::visitOp(mlir::linalg::MatmulOp op) {
   // if an attribute is set on a matmul operation
   (*res)[0] &= (*lhs)[0];
   (*res)[1] &= (*rhs)[1];
+
+  return mlir::success();
+}
+
+Result proteus::SparsityAnalysis::visitOp(mlir::linalg::AddOp op) {
+  auto *lhs = getState(op.getOperand(0));
+  auto *rhs = getState(op.getOperand(1));
+  auto *res = getState(op.getResult(0));
+
+  // We expect that all lattices are contained within the lattice map at this
+  // point, if not, we probably have not implemented a tranfer function that
+  // could yield results into an add op
+  if (!lhs || !rhs || !res)
+    return op.emitError("The lattices are not propagated"
+                        "properly in op: ")
+           << op.getOperationName();
+
+  for (std::size_t i = 0; i < res->rank(); i++) {
+    // llvm::BitVector does not support binary operations such as lhs & rhs
+    // so we have to go with a unary operation instead here.
+    llvm::BitVector temp = (*lhs)[i];
+    temp |= (*rhs)[i];
+    // Again we need to respect any preexisting lattices
+    (*res)[i] = temp;
+  }
 
   return mlir::success();
 }
