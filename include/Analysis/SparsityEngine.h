@@ -1,63 +1,18 @@
 #include "Analysis/SparsityLattice.h"
 
-#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/Value.h"
 
 using Result = mlir::LogicalResult;
 
 namespace proteus {
 
-class SparsityAnalysis;
-
-/**
- * @brief Seeds the lattice state from block arguments.
- */
-struct SeedPass {
-  /**
-   * @brief Runs the seed pass over a block.
-   *
-   * @param block The MLIR block whose arguments are inspected.
-   * @param analysis The analysis object owning the lattice state to update.
-   * @return success() if seeding completed without errors, failure() otherwise.
-   */
-  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
-};
-
-/**
- * @brief Propagates sparsity laterally between operands of the same operation.
- */
-struct LateralPass {
-  /**
-   * @brief Runs the lateral propagation pass over a block.
-   *
-   * @param block The MLIR block to analyse.
-   * @param analysis The analysis object owning the lattice state to update.
-   * @return success() if the pass completed without errors, failure()
-   * otherwise.
-   */
-  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
-};
-
-/**
- * @brief Propagates sparsity information backward through a block.
- */
-struct BackwardPass {
-  /**
-   * @brief Runs the backward propagation pass over a block.
-   *
-   * @param block The MLIR block to analyse.
-   * @param analysis The analysis object owning the lattice state to update.
-   * @return success() if the pass completed without errors, failure()
-   * otherwise.
-   */
-  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
-};
+class SparsityEngine;
 
 /**
  * @brief Orchestrates the full Sparsity Propagation Analysis (SPA) over a
  * block.
  */
-class SparsityAnalysis {
+class SparsityEngine {
 public:
   /**
    * @brief Runs the complete SPA pipeline over a block.
