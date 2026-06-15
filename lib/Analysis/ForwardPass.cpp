@@ -2,8 +2,6 @@
 
 #include "Analysis/ForwardPass.h"
 
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/TypeSwitch.h"
 
