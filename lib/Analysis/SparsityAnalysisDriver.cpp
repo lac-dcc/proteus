@@ -1,22 +1,11 @@
 #include "Analysis/SparsityAnalysisDriver.h"
 
+#include "Analysis/BackwardPass.h"
 #include "Analysis/ForwardPass.h"
+#include "Analysis/LateralPass.h"
 #include "Analysis/SeedPass.h"
 
-#include "mlir/Dialect/Func/IR/FuncOps.h"
-#include "mlir/Dialect/Linalg/Passes.h"
 #include "mlir/IR/Value.h"
-#include "llvm/ADT/TypeSwitch.h"
-
-Result proteus::LateralPass::run(mlir::Block *block,
-                                 SparsityAnalysis &analysis) {
-  return mlir::success();
-}
-
-Result proteus::BackwardPass::run(mlir::Block *block,
-                                  SparsityAnalysis &analysis) {
-  return mlir::success();
-}
 
 Result proteus::SparsityAnalysis::run(mlir::Block *block) {
   if (run<SeedPass>(block).failed()) {

@@ -1,6 +1,6 @@
-#include "Analysis/SparsityAnalysisDriver.h"
-
 #include "Analysis/ForwardPass.h"
+
+#include "Analysis/SparsityAnalysisDriver.h"
 
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/TypeSwitch.h"
