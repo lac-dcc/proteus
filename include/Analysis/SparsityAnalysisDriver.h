@@ -24,21 +24,6 @@ struct SeedPass {
 };
 
 /**
- * @brief Propagates sparsity information forward through a block.
- */
-struct ForwardPass {
-  /**
-   * @brief Runs the forward propagation pass over a block.
-   *
-   * @param block The MLIR block to analyse.
-   * @param analysis The analysis object owning the lattice state to update.
-   * @return success() if the pass completed without errors, failure()
-   * otherwise.
-   */
-  static Result run(mlir::Block *block, SparsityAnalysis &analysis);
-};
-
-/**
  * @brief Propagates sparsity laterally between operands of the same operation.
  */
 struct LateralPass {
@@ -121,7 +106,7 @@ public:
    * @param op The operation to visit.
    * @return success() if inference succeeded, failure() otherwise.
    */
-  Result visit(mlir::Operation &op);
+  template <typename PassType> Result visit(mlir::Operation &op);
 
   /**
    * @brief Infers sparsity for a linalg.matmul operation.
@@ -138,14 +123,6 @@ private:
    * @return success() or failure() as returned by PassType::run.
    */
   template <typename PassType> Result run(mlir::Block *block);
-
-  /**
-   * @brief Infers sparsity for a linalg.matmul operation.
-   *
-   * @param op The matmul op to analyse.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  Result visitOp(mlir::linalg::MatmulOp op);
 
   LatticeMap state;
 };

@@ -3,6 +3,7 @@ add_mlir_library(SparsityPropagationAnalysis
   SparsityPropagationAnalysis.cpp
   SparsityAnalysisDriver.cpp
   Utilities.cpp
+  ForwardPass.cpp
 
   LINK_LIBS PUBLIC
   MLIRIR

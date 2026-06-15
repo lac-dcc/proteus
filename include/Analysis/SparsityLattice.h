@@ -129,6 +129,9 @@ public:
   static std::optional<SparsityLattice>
   fromAttr(const mlir::DictionaryAttr &dict);
 
+  static std::optional<SparsityLattice>
+  fromAttr(const mlir::ArrayAttr &arrayAttr);
+
   /**
    * @brief Creates a lattice from a ranked tensor value
    *
