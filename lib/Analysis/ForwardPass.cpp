@@ -36,7 +36,9 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
     mlir::TypeSwitch<mlir::Operation *>(&op)
         .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp, mlir::linalg::AbsOp,
               mlir::linalg::CeilOp, mlir::linalg::FloorOp, mlir::linalg::NegfOp,
-              mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp
+              mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
+              mlir::linalg::CopyOp, mlir::linalg::MatvecOp,
+              mlir::linalg::VecmatOp
               /*, mlir::linalg::ManyOtherOps */>(
             [&](auto typedOp) { visitOp(typedOp, analysis); })
         .Default([](auto) {});
@@ -181,6 +183,51 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::DivUnsignedOp op,
 
   for (std::size_t i = 0; i < res->rank(); i++)
     (*res)[i] = (*oper)[i];
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::CopyOp op,
+                                     SparsityEngine &analysis) {
+  auto *oper = analysis.getState(op->getOperand(0));
+  auto *res = analysis.getState(op->getOpResult(0));
+
+  if (!oper || !res)
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << op.getOperationName();
+
+  for (std::size_t i = 0; i < res->rank(); i++)
+    (*res)[i] = (*oper)[i];
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp op,
+                                     SparsityEngine &analysis) {
+  auto *lhs = analysis.getState(op->getOperand(0));
+  auto *rhs = analysis.getState(op->getOperand(1));
+  auto *res = analysis.getState(op->getResult(0));
+
+  if (!lhs || !rhs || !res)
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << op.getOperationName();
+
+  // TODO: Logic for propagating MatvecOp sparsity
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp op,
+                                     SparsityEngine &analysis) {
+  auto *lhs = analysis.getState(op->getOperand(0));
+  auto *rhs = analysis.getState(op->getOperand(1));
+  auto *res = analysis.getState(op->getResult(0));
+
+  if (!lhs || !rhs || !res)
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << op.getOperationName();
+
+  // TODO: Logic for propagating VecmatOp sparsity
 
   return mlir::success();
 }

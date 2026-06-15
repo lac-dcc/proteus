@@ -104,5 +104,32 @@ private:
    */
   static Result visitOp(mlir::linalg::DivUnsignedOp op,
                         SparsityEngine &analysis);
+
+  /**
+   * @brief Infers forward sparsity for a linalg.copy operation.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitOp(mlir::linalg::CopyOp op, SparsityEngine &analysis);
+
+  /**
+   * @brief Infers forward sparsity for a linalg.matvec operation.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitOp(mlir::linalg::MatvecOp op, SparsityEngine &analysis);
+
+  /**
+   * @brief Infers forward sparsity for a linalg.vecmat operation.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitOp(mlir::linalg::VecmatOp op, SparsityEngine &analysis);
 };
 } // namespace proteus
