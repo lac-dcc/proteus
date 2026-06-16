@@ -39,14 +39,14 @@ public:
    * @brief Returns the number of dimensions (rank) of the lattice.
    * @return Number of BitVectors stored in the lattice.
    */
-  uint64_t rank() const;
+  [[nodiscard]] uint64_t rank() const;
 
   /**
    * @brief Returns the size of each dimension.
    * @return A vector of dimension sizes matching the shape passed to the
    *         constructor.
    */
-  llvm::SmallVector<uint64_t> shape() const;
+  [[nodiscard]] llvm::SmallVector<uint64_t> shape() const;
 
   /**
    * @brief Returns a mutable reference to the BitVector for the given

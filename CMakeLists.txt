@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(spa LANGUAGES CXX C)
+project(proteus LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
