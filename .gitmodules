@@ -1,3 +1,0 @@
-[submodule "external/bennu"]
-	path = external/bennu
-	url = https://github.com/lac-dcc/bennu
