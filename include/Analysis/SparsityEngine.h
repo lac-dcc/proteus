@@ -29,7 +29,7 @@ public:
    * @brief Returns a read-only reference to the full lattice map.
    * @return Const reference to the internal LatticeMap.
    */
-  const LatticeMap &getState() const;
+  [[nodiscard]] const LatticeMap &getState() const;
 
   /**
    * @brief Returns a mutable reference to the full lattice map.
@@ -53,7 +53,7 @@ public:
    * @return Const pointer to the SparsityLattice for @p value, or nullptr if
    *         the value is not present in the map.
    */
-  const SparsityLattice *getState(const mlir::Value &value) const;
+  [[nodiscard]] const SparsityLattice *getState(const mlir::Value &value) const;
 
   /**
    * @brief Dispatcher function for inferring sparsity on a specific operation.

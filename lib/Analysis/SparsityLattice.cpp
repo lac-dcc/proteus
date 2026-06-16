@@ -1,7 +1,5 @@
 #include "Analysis/SparsityLattice.h"
 
-#include "mlir/Dialect/Arith/IR/Arith.h"
-#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/BuiltinTypes.h"
 
@@ -32,11 +30,14 @@ const llvm::BitVector &SparsityLattice::operator[](const uint64_t index) const {
 }
 
 bool SparsityLattice::operator==(const SparsityLattice &other) const {
-  if (sparsities.size() != other.sparsities.size())
+  if (sparsities.size() != other.sparsities.size()) {
     return false;
-  for (size_t i = 0; i < sparsities.size(); ++i)
-    if (sparsities[i] != other.sparsities[i])
+  }
+  for (size_t i = 0; i < sparsities.size(); ++i) {
+    if (sparsities[i] != other.sparsities[i]) {
       return false;
+    }
+  }
   return true;
 }
 
@@ -67,9 +68,11 @@ mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
     llvm::SmallVector<int64_t> words;
     for (unsigned i = 0; i < bv.size(); i += 64) {
       int64_t word = 0;
-      for (unsigned b = i; b < std::min(i + 64u, bv.size()); ++b)
-        if (bv[b])
+      for (unsigned b = i; b < std::min(i + 64U, bv.size()); ++b) {
+        if (bv[b]) {
           word |= (int64_t{1} << (b - i));
+        }
+      }
       words.push_back(word);
     }
     auto dict = mlir::DictionaryAttr::get(
@@ -94,8 +97,9 @@ std::optional<SparsityLattice>
 SparsityLattice::fromAttr(const mlir::DictionaryAttr &dict) {
   auto sparsityAttr = dict.get("proteus.lattice");
 
-  if (!sparsityAttr)
+  if (!sparsityAttr) {
     return std::nullopt;
+  }
 
   if (llvm::isa<mlir::ArrayAttr>(sparsityAttr)) {
     auto arrayAttr = llvm::cast<mlir::ArrayAttr>(sparsityAttr);
@@ -108,8 +112,9 @@ SparsityLattice::fromAttr(const mlir::DictionaryAttr &dict) {
 std::optional<SparsityLattice>
 SparsityLattice::defaultFromValue(const mlir::Value &value) {
   auto tensorType = llvm::dyn_cast<mlir::RankedTensorType>(value.getType());
-  if (!tensorType || !tensorType.hasStaticShape())
+  if (!tensorType || !tensorType.hasStaticShape()) {
     return std::nullopt;
+  }
 
   auto shape = tensorType.getShape();
   llvm::SmallVector<uint64_t> uShape(shape.begin(), shape.end());
@@ -151,16 +156,18 @@ SparsityLattice::constructFromAttr(const mlir::ArrayAttr &arrayAttr) {
 
     // Iterate through each word in the attribute
     for (size_t w = 0; w < static_cast<size_t>(words.size()); ++w) {
-      uint64_t word = static_cast<uint64_t>(words[w]);
+      auto word = static_cast<uint64_t>(words[w]);
       // w * 64 + b represents the global offset in the case where there's
       // multiple words in a single bitvector, meaning the bitvector has
       // length larger than 64. So the conditional in the `if` statement
       // becomes twofold, not exceeding 64 bits for a single word and
       // not exceeding global size for the entire bitvector
-      for (unsigned b = 0; b < 64 && w * 64 + b < size; ++b)
+      for (unsigned b = 0; b < 64 && (w * 64) + b < size; ++b) {
         // If the bit b is set in the word, then set that bit in the bitvector
-        if ((word >> b) & 1u)
-          bv.set(w * 64 + b);
+        if (((word >> b) & 1U) != 0U) {
+          bv.set((w * 64) + b);
+        }
+      }
     }
   }
 
@@ -171,16 +178,18 @@ llvm::raw_ostream &operator<<(llvm::raw_ostream &out,
                               const SparsityLattice &lattice) {
   out << "SparsityLattice<";
   for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
-    if (d > 0)
+    if (d > 0) {
       out << "x";
+    }
     out << lattice.sparsities[d].size();
   }
   out << "> {\n";
   for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
     const auto &bv = lattice.sparsities[d];
     out << "  a[" << d << "]: ";
-    for (uint64_t i = 0; i < bv.size(); ++i)
+    for (uint64_t i = 0; i < bv.size(); ++i) {
       out << (bv[i] ? '1' : '0');
+    }
     out << "  (" << bv.size() << " slices)\n";
   }
   out << "}";
