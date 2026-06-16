@@ -69,6 +69,16 @@ private:
   static Result visitOp(mlir::linalg::VecmatOp &op, SparsityEngine &analysis);
 
   /**
+   * @brief Infers forward sparsity for a linalg.transpose operation.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitOp(mlir::linalg::TransposeOp &op,
+                        SparsityEngine &analysis);
+
+  /**
    * @brief Infers forward sparsity for ops that pass sparsity through unchanged
    * from their single operand to their result (e.g. abs, ceil, tanh).
    *

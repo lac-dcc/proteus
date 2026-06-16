@@ -38,14 +38,14 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
     Result switchResult =
         mlir::TypeSwitch<mlir::Operation *, Result>(&op)
             .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp,
-                  mlir::linalg::MatvecOp, mlir::linalg::VecmatOp>(
-                [&](auto typedOp) -> Result {
-                  if (visitOp(typedOp, analysis).failed()) {
-                    return op.emitError("Failed when visiting op: ")
-                           << op.getName();
-                  }
-                  return mlir::success();
-                })
+                  mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
+                  mlir::linalg::TransposeOp>([&](auto typedOp) -> Result {
+              if (visitOp(typedOp, analysis).failed()) {
+                return op.emitError("Failed when visiting op: ")
+                       << op.getName();
+              }
+              return mlir::success();
+            })
             .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
                   mlir::linalg::FloorOp, mlir::linalg::NegFOp,
                   mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
@@ -148,6 +148,24 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp &op,
     (*res)[0].reset();
   } else {
     (*res)[0] = (*rhs)[1];
+  }
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::TransposeOp &op,
+                                     SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *res = analysis.getState(op->getResult(0));
+
+  if ((input == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::linalg::TransposeOp::getOperationName();
+  }
+
+  llvm::ArrayRef<int64_t> perm = op.getPermutation();
+  for (std::size_t i = 0; i < res->rank(); i++) {
+    (*res)[i] = (*input)[perm[i]];
   }
 
   return mlir::success();
