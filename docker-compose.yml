@@ -1,0 +1,11 @@
+services:
+  convert:
+    build:
+      context: .
+      dockerfile: Dockerfile.convert
+    platform: linux/amd64
+    volumes:
+      - ./models:/workspace/models
+      - ./mlir_out:/workspace/mlir_out
+      - ./scripts:/workspace/scripts:ro
+    command: bash /workspace/scripts/convert_models.sh

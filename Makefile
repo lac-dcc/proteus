@@ -1,4 +1,5 @@
-.PHONY: all config build set-style format test tidy watch clean docs
+.PHONY: all config build set-style format test tidy watch clean docs \
+        dataset-build dataset-convert dataset-clean
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
@@ -37,3 +38,13 @@ clean:
 
 docs: build
 	doxygen
+
+dataset-build:
+	docker compose build convert
+
+dataset-convert: dataset-build
+	mkdir -p mlir_out
+	docker compose run --rm convert
+
+dataset-clean:
+	rm -rf mlir_out

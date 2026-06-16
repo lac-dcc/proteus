@@ -4,8 +4,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-ONNX_DIR="${ONNX_DIR:-$REPO_ROOT/external/bennu/models}"
-OUT_DIR="${OUT_DIR:-$REPO_ROOT/models}"
+ONNX_DIR="${ONNX_DIR:-$REPO_ROOT/models}"
+OUT_DIR="${OUT_DIR:-$REPO_ROOT/mlir_out}"
 
 # Models known not to work with torch-mlir
 SKIP="densenet121 densenet161 densenet169 densenet201 vgg13"
