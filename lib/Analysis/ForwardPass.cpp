@@ -35,7 +35,7 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
 
     mlir::TypeSwitch<mlir::Operation *>(&op)
         .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp, mlir::linalg::AbsOp,
-              mlir::linalg::CeilOp, mlir::linalg::FloorOp, mlir::linalg::NegfOp,
+              mlir::linalg::CeilOp, mlir::linalg::FloorOp, mlir::linalg::NegFOp,
               mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp
               /*, mlir::linalg::ManyOtherOps */>(
             [&](auto typedOp) { visitOp(typedOp, analysis); })
@@ -140,7 +140,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::FloorOp op,
   return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::NegfOp op,
+Result proteus::ForwardPass::visitOp(mlir::linalg::NegFOp op,
                                      SparsityEngine &analysis) {
   auto *oper = analysis.getState(op->getOperand(0));
   auto *res = analysis.getState(op->getOpResult(0));
