@@ -124,7 +124,11 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp &op,
            << mlir::linalg::MatvecOp::getOperationName();
   }
 
-  // TODO: Logic for propagating MatvecOp sparsity
+  if ((*rhs)[0].none()) {
+    (*res)[0].reset();
+  } else {
+    (*res)[0] = (*lhs)[0];
+  }
 
   return mlir::success();
 }
@@ -140,7 +144,11 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp &op,
            << mlir::linalg::VecmatOp::getOperationName();
   }
 
-  // TODO: Logic for propagating VecmatOp sparsity
+  if ((*lhs)[0].none()) {
+    (*res)[0].reset();
+  } else {
+    (*res)[0] = (*rhs)[1];
+  }
 
   return mlir::success();
 }
