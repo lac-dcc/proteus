@@ -39,7 +39,7 @@ private:
    * @param analysis The SPA analysis object.
    * @return success() if inference succeeded, failure() otherwise.
    */
-  static Result visitOp(mlir::linalg::AddOp op, SparsityEngine &analysis);
+  static Result visitOp(mlir::linalg::AddOp &op, SparsityEngine &analysis);
 
   /**
    * @brief Infers forward sparsity for a linalg.matmul operation.
@@ -48,98 +48,7 @@ private:
    * @param analysis The SPA analysis object.
    * @return success() if inference succeeded, failure() otherwise.
    */
-  static Result visitOp(mlir::linalg::MatmulOp op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.abs operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::AbsOp op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.ceil operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::CeilOp op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.floor operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::FloorOp op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.negf operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::NegFOp op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.div operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::DivOp op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.div_unsigned operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::DivUnsignedOp op,
-                        SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.copy operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::CopyOp op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.tanh operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::TanhOp op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.square operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::SquareOp op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers forward sparsity for a linalg.square operation.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
-  static Result visitOp(mlir::linalg::SqrtOp op, SparsityEngine &analysis);
+  static Result visitOp(mlir::linalg::MatmulOp &op, SparsityEngine &analysis);
 
   /**
    * @brief Infers forward sparsity for a linalg.matvec operation.
@@ -148,7 +57,7 @@ private:
    * @param analysis The SPA analysis object.
    * @return success() if inference succeeded, failure() otherwise.
    */
-  static Result visitOp(mlir::linalg::MatvecOp op, SparsityEngine &analysis);
+  static Result visitOp(mlir::linalg::MatvecOp &op, SparsityEngine &analysis);
 
   /**
    * @brief Infers forward sparsity for a linalg.vecmat operation.
@@ -157,6 +66,17 @@ private:
    * @param analysis The SPA analysis object.
    * @return success() if inference succeeded, failure() otherwise.
    */
-  static Result visitOp(mlir::linalg::VecmatOp op, SparsityEngine &analysis);
+  static Result visitOp(mlir::linalg::VecmatOp &op, SparsityEngine &analysis);
+
+  /**
+   * @brief Infers forward sparsity for ops that pass sparsity through unchanged
+   * from their single operand to their result (e.g. abs, ceil, tanh).
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitPassthroughOp(mlir::Operation &op,
+                                   SparsityEngine &analysis);
 };
 } // namespace proteus

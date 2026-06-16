@@ -38,19 +38,21 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
     Result switchResult =
         mlir::TypeSwitch<mlir::Operation *, Result>(&op)
             .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp,
-                  mlir::linalg::AbsOp, mlir::linalg::CeilOp,
-                  mlir::linalg::FloorOp, mlir::linalg::NegFOp,
-                  mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
-                  mlir::linalg::CopyOp, mlir::linalg::TanhOp,
-                  mlir::linalg::SquareOp, mlir::linalg::SqrtOp,
-                  mlir::linalg::MatvecOp, mlir::linalg::VecmatOp
-                  /*, mlir::linalg::ManyOtherOps */>(
+                  mlir::linalg::MatvecOp, mlir::linalg::VecmatOp>(
                 [&](auto typedOp) -> Result {
                   if (visitOp(typedOp, analysis).failed()) {
                     return op.emitError("Failed when visiting op: ")
                            << op.getName();
                   }
                   return mlir::success();
+                })
+            .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
+                  mlir::linalg::FloorOp, mlir::linalg::NegFOp,
+                  mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
+                  mlir::linalg::CopyOp, mlir::linalg::TanhOp,
+                  mlir::linalg::SquareOp, mlir::linalg::SqrtOp>(
+                [&](auto) -> Result {
+                  return visitPassthroughOp(op, analysis);
                 })
             .Default([](auto) { return mlir::success(); });
     if (switchResult.failed()) {
@@ -61,7 +63,7 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
   return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::MatmulOp op,
+Result proteus::ForwardPass::visitOp(mlir::linalg::MatmulOp &op,
                                      SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op.getOperand(0));
   auto *rhs = analysis.getState(op.getOperand(1));
@@ -84,7 +86,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::MatmulOp op,
   return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::AddOp op,
+Result proteus::ForwardPass::visitOp(mlir::linalg::AddOp &op,
                                      SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op.getOperand(0));
   auto *rhs = analysis.getState(op.getOperand(1));
@@ -111,178 +113,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::AddOp op,
   return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::AbsOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated"
-                        "properly in op: ")
-           << mlir::linalg::AbsOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::CeilOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::CeilOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::FloorOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::FloorOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::NegFOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::NegFOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::DivOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::DivOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::DivUnsignedOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::DivUnsignedOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::CopyOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::CopyOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::TanhOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::TanhOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::SquareOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::SquareOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::SqrtOp op,
-                                     SparsityEngine &analysis) {
-  auto *oper = analysis.getState(op->getOperand(0));
-  auto *res = analysis.getState(op->getOpResult(0));
-
-  if ((oper == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::SqrtOp::getOperationName();
-  }
-
-  for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*oper)[i];
-  }
-
-  return mlir::success();
-}
-
-Result proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp op,
+Result proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp &op,
                                      SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op->getOperand(0));
   auto *rhs = analysis.getState(op->getOperand(1));
@@ -298,7 +129,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp op,
   return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp op,
+Result proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp &op,
                                      SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op->getOperand(0));
   auto *rhs = analysis.getState(op->getOperand(1));
@@ -310,6 +141,23 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp op,
   }
 
   // TODO: Logic for propagating VecmatOp sparsity
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitPassthroughOp(mlir::Operation &op,
+                                                SparsityEngine &analysis) {
+  auto *operand = analysis.getState(op.getOperand(0));
+  auto *res = analysis.getState(op.getOpResult(0));
+
+  if ((operand == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << op.getName();
+  }
+
+  for (std::size_t i = 0; i < res->rank(); i++) {
+    (*res)[i] = (*operand)[i];
+  }
 
   return mlir::success();
 }
