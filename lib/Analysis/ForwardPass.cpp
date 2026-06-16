@@ -39,13 +39,14 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
         mlir::TypeSwitch<mlir::Operation *, Result>(&op)
             .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp,
                   mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
-                  mlir::linalg::TransposeOp>([&](auto typedOp) -> Result {
-              if (visitOp(typedOp, analysis).failed()) {
-                return op.emitError("Failed when visiting op: ")
-                       << op.getName();
-              }
-              return mlir::success();
-            })
+                  mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp>(
+                [&](auto typedOp) -> Result {
+                  if (visitOp(typedOp, analysis).failed()) {
+                    return op.emitError("Failed when visiting op: ")
+                           << op.getName();
+                  }
+                  return mlir::success();
+                })
             .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
                   mlir::linalg::FloorOp, mlir::linalg::NegFOp,
                   mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
@@ -169,6 +170,26 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::TransposeOp &op,
   }
 
   return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
+                                     SparsityEngine &analysis) {
+  auto *lhs = analysis.getState(op->getOperand(0));
+  auto *rhs = analysis.getState(op->getOperand(1));
+  auto *res = analysis.getState(op->getResult(0));
+
+  if ((lhs == nullptr) || (rhs == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::linalg::TransposeOp::getOperationName();
+  }
+
+  // Transfer sparsity for the batch dimension
+  (*res)[0] &= (*lhs)[0];
+  (*res)[0] &= (*rhs)[0];
+
+  // TODO: Implemented logic for the transfer function of BatchMatmulOp
+  return op.emitError("Transfer Function not implemented yet for op: ")
+         << mlir::linalg::BatchMatmulOp::getOperationName();
 }
 
 Result proteus::ForwardPass::visitPassthroughOp(mlir::Operation &op,
