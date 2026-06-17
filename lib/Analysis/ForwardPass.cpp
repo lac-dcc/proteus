@@ -180,16 +180,18 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
 
   if ((lhs == nullptr) || (rhs == nullptr) || (res == nullptr)) {
     return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::TransposeOp::getOperationName();
+           << mlir::linalg::BatchMatmulOp::getOperationName();
   }
 
   // Transfer sparsity for the batch dimension
   (*res)[0] &= (*lhs)[0];
   (*res)[0] &= (*rhs)[0];
+  // Row slice sparsity is maintained from the lhs
+  (*res)[1] &= (*lhs)[1];
+  // Column slice sparsity in maintained from the rhs
+  (*res)[2] &= (*rhs)[2];
 
-  // TODO: Implemented logic for the transfer function of BatchMatmulOp
-  return op.emitError("Transfer Function not implemented yet for op: ")
-         << mlir::linalg::BatchMatmulOp::getOperationName();
+  return mlir::success();
 }
 
 Result proteus::ForwardPass::visitPassthroughOp(mlir::Operation &op,
