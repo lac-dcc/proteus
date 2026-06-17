@@ -2,6 +2,7 @@
 
 #include "Analysis/SparsityEngine.h"
 
+#include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/TypeSwitch.h"
 
@@ -39,14 +40,14 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
         mlir::TypeSwitch<mlir::Operation *, Result>(&op)
             .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp,
                   mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
-                  mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp>(
-                [&](auto typedOp) -> Result {
-                  if (visitOp(typedOp, analysis).failed()) {
-                    return op.emitError("Failed when visiting op: ")
-                           << op.getName();
-                  }
-                  return mlir::success();
-                })
+                  mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
+                  mlir::linalg::FillOp>([&](auto typedOp) -> Result {
+              if (visitOp(typedOp, analysis).failed()) {
+                return op.emitError("Failed when visiting op: ")
+                       << op.getName();
+              }
+              return mlir::success();
+            })
             .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
                   mlir::linalg::FloorOp, mlir::linalg::NegFOp,
                   mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
@@ -190,6 +191,38 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
   (*res)[1] &= (*lhs)[1];
   // Column slice sparsity in maintained from the rhs
   (*res)[2] &= (*rhs)[2];
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::FillOp &op,
+                                     SparsityEngine &analysis) {
+  auto *res = analysis.getState(op.getResult(0));
+  mlir::Value cst = op.getInputs()[0];
+  auto cstOp = cst.getDefiningOp<mlir::arith::ConstantOp>();
+
+  if (res == nullptr || !cstOp) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::linalg::FillOp::getOperationName();
+  }
+
+  bool isZero = false;
+
+  // Depending on the type of the constant we have to cast differently
+  // In case of FloatType we can get the value of constant through isZero()
+  if (mlir::isa<mlir::FloatType>(cst.getType())) {
+    isZero = mlir::cast<mlir::FloatAttr>(cstOp.getValue()).getValue().isZero();
+    // In case of IntegerType we have to equate
+  } else if (mlir::isa<mlir::IntegerType>(cst.getType())) {
+    isZero = mlir::cast<mlir::IntegerAttr>(cstOp.getValue()).getInt() == 0;
+  }
+
+  // If the constant is zero after all, reset all bits in all ranks
+  if (isZero) {
+    for (std::size_t i = 0; i < res->rank(); ++i) {
+      (*res)[i].reset();
+    }
+  }
 
   return mlir::success();
 }
