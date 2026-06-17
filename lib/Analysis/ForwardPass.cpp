@@ -41,13 +41,14 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
             .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp,
                   mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
                   mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
-                  mlir::linalg::FillOp>([&](auto typedOp) -> Result {
-              if (visitOp(typedOp, analysis).failed()) {
-                return op.emitError("Failed when visiting op: ")
-                       << op.getName();
-              }
-              return mlir::success();
-            })
+                  mlir::linalg::FillOp, mlir::linalg::BroadcastOp>(
+                [&](auto typedOp) -> Result {
+                  if (visitOp(typedOp, analysis).failed()) {
+                    return op.emitError("Failed when visiting op: ")
+                           << op.getName();
+                  }
+                  return mlir::success();
+                })
             .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
                   mlir::linalg::FloorOp, mlir::linalg::NegFOp,
                   mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
@@ -222,6 +223,42 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::FillOp &op,
     for (std::size_t i = 0; i < res->rank(); ++i) {
       (*res)[i].reset();
     }
+  }
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::BroadcastOp &op,
+                                     SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getInput());
+  auto *res = analysis.getState(op->getResult(0));
+
+  if ((input == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::linalg::BroadcastOp::getOperationName();
+  }
+
+  // Get the dimensions attribute from the op, these dimensions are essentially
+  // all the new dimensions that will be added to the tensor
+  auto broadcastDims = op.getDimensions();
+
+  // Broadcast does not allow for the splitting or reshaping of the existing
+  // tensor that is being broadcasted, so we will keep a counter of the
+  // dimension that we last changed and increment it as we iterate through the
+  // ranks of the resulting tensor
+  std::size_t inputDim = 0;
+
+  // Iterate through the ranks of our resulting tensor
+  for (std::size_t i = 0; i < res->rank(); ++i) {
+    // In the case of this dimension not being a part of the dimensions being
+    // added by the broadcast continue to next rank
+    if (llvm::is_contained(broadcastDims, i)) {
+      continue;
+    }
+
+    // If we do get to a dimension that existed previously in the input tensor
+    // we propagate the sparsity to the current rank's bitvector
+    (*res)[i] = (*input)[inputDim++];
   }
 
   return mlir::success();
