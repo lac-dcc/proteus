@@ -3,6 +3,8 @@
 #include "Analysis/SparsityEngine.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/TypeSwitch.h"
 
@@ -41,14 +43,14 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
             .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp,
                   mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
                   mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
-                  mlir::linalg::FillOp, mlir::linalg::BroadcastOp>(
-                [&](auto typedOp) -> Result {
-                  if (visitOp(typedOp, analysis).failed()) {
-                    return op.emitError("Failed when visiting op: ")
-                           << op.getName();
-                  }
-                  return mlir::success();
-                })
+                  mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
+                  mlir::tensor::PadOp>([&](auto typedOp) -> Result {
+              if (visitOp(typedOp, analysis).failed()) {
+                return op.emitError("Failed when visiting op: ")
+                       << op.getName();
+              }
+              return mlir::success();
+            })
             .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
                   mlir::linalg::FloorOp, mlir::linalg::NegFOp,
                   mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
@@ -259,6 +261,48 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::BroadcastOp &op,
     // If we do get to a dimension that existed previously in the input tensor
     // we propagate the sparsity to the current rank's bitvector
     (*res)[i] = (*input)[inputDim++];
+  }
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
+                                     SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *res = analysis.getState(op.getResult());
+
+  if ((input == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::tensor::PadOp::getOperationName();
+  }
+
+  // Check all high pads for static padding
+  for (auto &pad : op.getMixedHighPad()) {
+    // If a padding is not a static, we cannot propagate sparsity
+    if (!mlir::getConstantIntValue(pad)) {
+      return mlir::success();
+    };
+  }
+
+  auto pads = op.getMixedLowPad();
+
+  for (std::size_t i = 0; i < res->rank(); ++i) {
+    auto lowPad = mlir::getConstantIntValue(pads[i]);
+
+    // In the case of dynamic pads, we cannot propagate sparsity
+    if (!lowPad) {
+      return mlir::success();
+    }
+
+    // Reset all and set as we go through the input lattice for that rank
+    (*res)[i].reset();
+
+    for (std::size_t j = 0; j < (*input)[i].size(); j++) {
+      // Padded fibers are correct, thus we set by the offset of the padding
+      if ((*input)[i][j]) {
+        (*res)[i].set(j + lowPad.value());
+      }
+    }
   }
 
   return mlir::success();

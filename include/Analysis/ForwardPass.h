@@ -1,4 +1,5 @@
 #include "mlir/Dialect/Linalg/IR/Linalg.h"
+#include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/Value.h"
 
 using Result = mlir::LogicalResult;
@@ -106,6 +107,15 @@ private:
    */
   static Result visitOp(mlir::linalg::BroadcastOp &op,
                         SparsityEngine &analysis);
+
+  /**
+   * @brief Infers forward sparsity for a tensor.pad operation.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitOp(mlir::tensor::PadOp &op, SparsityEngine &analysis);
 
   /**
    * @brief Infers forward sparsity for ops that pass sparsity through unchanged
