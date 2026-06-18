@@ -44,13 +44,14 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
                   mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
                   mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
                   mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
-                  mlir::tensor::PadOp>([&](auto typedOp) -> Result {
-              if (visitOp(typedOp, analysis).failed()) {
-                return op.emitError("Failed when visiting op: ")
-                       << op.getName();
-              }
-              return mlir::success();
-            })
+                  mlir::tensor::PadOp, mlir::tensor::ConcatOp>(
+                [&](auto typedOp) -> Result {
+                  if (visitOp(typedOp, analysis).failed()) {
+                    return op.emitError("Failed when visiting op: ")
+                           << op.getName();
+                  }
+                  return mlir::success();
+                })
             .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
                   mlir::linalg::FloorOp, mlir::linalg::NegFOp,
                   mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
@@ -277,6 +278,14 @@ Result proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
   }
 
   // Check all high pads for static padding
+  for (auto &pad : op.getMixedLowPad()) {
+    // If a padding is not a static, we cannot propagate sparsity
+    if (!mlir::getConstantIntValue(pad)) {
+      return mlir::success();
+    };
+  }
+
+  // Check all high pads for static padding
   for (auto &pad : op.getMixedHighPad()) {
     // If a padding is not a static, we cannot propagate sparsity
     if (!mlir::getConstantIntValue(pad)) {
@@ -289,11 +298,6 @@ Result proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
   for (std::size_t i = 0; i < res->rank(); ++i) {
     auto lowPad = mlir::getConstantIntValue(pads[i]);
 
-    // In the case of dynamic pads, we cannot propagate sparsity
-    if (!lowPad) {
-      return mlir::success();
-    }
-
     // Reset all and set as we go through the input lattice for that rank
     (*res)[i].reset();
 
@@ -301,6 +305,59 @@ Result proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
       // Padded fibers are correct, thus we set by the offset of the padding
       if ((*input)[i][j]) {
         (*res)[i].set(j + lowPad.value());
+      }
+    }
+  }
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
+                                     SparsityEngine &analysis) {
+  auto *res = analysis.getState(op->getResult(0));
+
+  if (res == nullptr) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::tensor::ConcatOp::getOperationName();
+  }
+
+  auto concatDim = op.getDim();
+
+  for (std::size_t i = 0; i < res->rank(); ++i) {
+    (*res)[i].reset();
+  }
+
+  // This offset is needed for the result to be able to concatenate across all
+  // tensor operands, so we know at which position we are exactly
+  uint64_t offset = 0;
+
+  // The ConcatOp takes an arbitrary number of operands, so we should iterate
+  // over the operands this time
+  for (std::size_t i = 0; i < op.getNumOperands(); i++) {
+    auto *operand = analysis.getState(op.getOperand(i));
+
+    if (operand == nullptr) {
+      return op.emitError("The lattices are not propagated properly in op: ")
+             << mlir::tensor::ConcatOp::getOperationName();
+    }
+
+    // For each dimension that is not the dimension we are concatenating on
+    // we will use the OR operator to ensure that sparsity is propagated when
+    // all tensors are sparse on that dimension
+    for (std::size_t j = 0; j < res->rank(); j++) {
+      if (j == concatDim) {
+        // In the case of the concatenation dimension, we just concatenate
+        // the bits of that dimension for all tensor operands
+        for (std::size_t k = 0; k < (*operand)[j].size(); k++) {
+          (*res)[j][k + offset] = (*operand)[j][k];
+        }
+
+        offset += (*operand)[j].size();
+      } else {
+        // For each operand we use the OR operation to make sure that only
+        // in the case of all tensors being sparse on that dimension, the
+        // sparsity is propagated
+        (*res)[j] |= (*operand)[j];
       }
     }
   }
