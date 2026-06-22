@@ -127,6 +127,18 @@ private:
   static Result visitOp(mlir::tensor::ConcatOp &op, SparsityEngine &analysis);
 
   /**
+   * @brief Infers forward sparsity for a linalg.conv_2d operation.
+   *
+   * Output row oh is sparse iff all input rows [oh, oh+kH) are sparse.
+   * Output col ow is sparse iff all input cols [ow, ow+kW) are sparse.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitOp(mlir::linalg::Conv2DOp &op, SparsityEngine &analysis);
+
+  /**
    * @brief Infers forward sparsity for ops that pass sparsity through unchanged
    * from their single operand to their result (e.g. abs, ceil, tanh).
    *

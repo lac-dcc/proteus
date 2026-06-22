@@ -51,14 +51,14 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
                   mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
                   mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
                   mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
-                  mlir::tensor::PadOp, mlir::tensor::ConcatOp>(
-                [&](auto typedOp) -> Result {
-                  if (visitOp(typedOp, analysis).failed()) {
-                    return op.emitError("Failed when visiting op: ")
-                           << op.getName();
-                  }
-                  return mlir::success();
-                })
+                  mlir::linalg::Conv2DOp, mlir::tensor::PadOp,
+                  mlir::tensor::ConcatOp>([&](auto typedOp) -> Result {
+              if (visitOp(typedOp, analysis).failed()) {
+                return op.emitError("Failed when visiting op: ")
+                       << op.getName();
+              }
+              return mlir::success();
+            })
             .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
                   mlir::linalg::FloorOp, mlir::linalg::NegFOp,
                   mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
@@ -366,6 +366,47 @@ Result proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
         // in the case of all tensors being sparse on that dimension, the
         // sparsity is propagated
         (*res)[j] |= (*operand)[j];
+      }
+    }
+  }
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
+                                     SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *filter = analysis.getState(op.getOperand(1));
+  auto *res = analysis.getState(op.getResult(0));
+
+  if ((input == nullptr) || (filter == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::linalg::Conv2DOp::getOperationName();
+  }
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  // Iterate through each rank of the resulting tensor
+  for (std::size_t i = 0; i < res->rank(); i++) {
+    // Walk through each fiber on that dimension
+    for (std::size_t dim = 0; dim < (*res)[i].size(); dim++) {
+      bool allSparse = true;
+      // Check whether there are fdim contiguous zeros, if there are the result
+      // of the convolution for the fiber is also sparse
+      for (int64_t fdim = 0; fdim < filterType.getDimSize(i) && allSparse;
+           fdim++) {
+        //  If not falsify the allSparse flag and continue with the rest of the
+        //  fibers in the result
+        if ((*input)[i][dim + fdim]) {
+          allSparse = false;
+        }
+      }
+
+      // If the allSparse flag is true by the end of the above iteration,
+      // this is where we make the resulting fiber sparse
+      if (allSparse) {
+        (*res)[i].reset(dim);
       }
     }
   }
