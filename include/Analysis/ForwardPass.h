@@ -129,9 +129,6 @@ private:
   /**
    * @brief Infers forward sparsity for a linalg.conv_2d operation.
    *
-   * Output row oh is sparse iff all input rows [oh, oh+kH) are sparse.
-   * Output col ow is sparse iff all input cols [ow, ow+kW) are sparse.
-   *
    * @param op The op to analyse.
    * @param analysis The SPA analysis object.
    * @return success() if inference succeeded, failure() otherwise.
@@ -140,11 +137,6 @@ private:
 
   /**
    * @brief Infers forward sparsity for a linalg.conv_2d_nchw_fchw operation.
-   *
-   * N and F dimensions pass through from input and filter respectively.
-   * Output row oh is sparse iff all input rows [oh*sH, oh*sH+(kH-1)*dH] are
-   * sparse. Output col ow is sparse iff all input cols [ow*sW, ow*sW+(kW-1)*dW]
-   * are sparse.
    *
    * @param op The op to analyse.
    * @param analysis The SPA analysis object.
@@ -156,16 +148,31 @@ private:
   /**
    * @brief Infers forward sparsity for a linalg.conv_2d_nhwc_hwcf operation.
    *
-   * N and F dimensions pass through from input and filter respectively.
-   * Output row oh is sparse iff all input rows [oh*sH, oh*sH+(kH-1)*dH] are
-   * sparse. Output col ow is sparse iff all input cols [ow*sW, ow*sW+(kW-1)*dW]
-   * are sparse.
-   *
    * @param op The op to analyse.
    * @param analysis The SPA analysis object.
    * @return success() if inference succeeded, failure() otherwise.
    */
   static Result visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
+                        SparsityEngine &analysis);
+
+  /**
+   * @brief Infers forward sparsity for linalg.pooling_nchw_max
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitOp(mlir::linalg::PoolingNchwMaxOp &op,
+                        SparsityEngine &analysis);
+
+  /**
+   * @brief Infers forward sparsity for linalg.pooling_nchw_sum
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitOp(mlir::linalg::PoolingNchwSumOp &op,
                         SparsityEngine &analysis);
 
   /**

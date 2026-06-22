@@ -52,7 +52,9 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
                   mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
                   mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
                   mlir::linalg::Conv2DOp, mlir::linalg::Conv2DNchwFchwOp,
-                  mlir::linalg::Conv2DNhwcHwcfOp, mlir::tensor::PadOp,
+                  mlir::linalg::Conv2DNhwcHwcfOp,
+                  mlir::linalg::PoolingNchwMaxOp,
+                  mlir::linalg::PoolingNchwSumOp, mlir::tensor::PadOp,
                   mlir::tensor::ConcatOp>([&](auto typedOp) -> Result {
               if (visitOp(typedOp, analysis).failed()) {
                 return op.emitError("Failed when visiting op: ")
@@ -501,6 +503,94 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
 
       if (allSparse) {
         (*res)[dim + 1].reset(fiber);
+      }
+    }
+  }
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwMaxOp &op,
+                                     SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *res = analysis.getState(op.getResult(0));
+
+  if ((input == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::linalg::PoolingNchwMaxOp::getOperationName();
+  }
+
+  auto kernelType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  llvm::SmallVector<int64_t, 2> strides(op.getStrides().getValues<int64_t>());
+  llvm::SmallVector<int64_t, 2> dilations(
+      op.getDilations().getValues<int64_t>());
+
+  // Same logic for pooling as with convolutions in 2D
+  (*res)[0] &= (*input)[0];
+  (*res)[1] &= (*input)[1];
+
+  // Same logic for pooling as with convolutions in 2D
+  for (uint64_t dim = 0; dim < 2; dim++) {
+    int64_t kernelSize = kernelType.getDimSize(dim);
+    int64_t stride = strides[dim];
+    int64_t dilation = dilations[dim];
+
+    for (std::size_t fiber = 0; fiber < (*res)[dim + 2].size(); fiber++) {
+      bool allSparse = true;
+      for (int64_t fFiber = 0; fFiber < kernelSize && allSparse; fFiber++) {
+        if ((*input)[dim + 2][(fiber * stride) + (fFiber * dilation)]) {
+          allSparse = false;
+        }
+      }
+
+      if (allSparse) {
+        (*res)[dim + 2].reset(fiber);
+      }
+    }
+  }
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwSumOp &op,
+                                     SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *res = analysis.getState(op.getResult(0));
+
+  if ((input == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::linalg::PoolingNchwSumOp::getOperationName();
+  }
+
+  auto kernelType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  llvm::SmallVector<int64_t, 2> strides(op.getStrides().getValues<int64_t>());
+  llvm::SmallVector<int64_t, 2> dilations(
+      op.getDilations().getValues<int64_t>());
+
+  // Again, same logic for pooling as with convolutions in 2D
+  (*res)[0] &= (*input)[0];
+  (*res)[1] &= (*input)[1];
+
+  // Again, same logic for pooling as with convolutions in 2D
+  for (uint64_t dim = 0; dim < 2; dim++) {
+    int64_t kernelSize = kernelType.getDimSize(dim);
+    int64_t stride = strides[dim];
+    int64_t dilation = dilations[dim];
+
+    for (std::size_t fiber = 0; fiber < (*res)[dim + 2].size(); fiber++) {
+      bool allSparse = true;
+      for (int64_t fFiber = 0; fFiber < kernelSize && allSparse; fFiber++) {
+        if ((*input)[dim + 2][(fiber * stride) + (fFiber * dilation)]) {
+          allSparse = false;
+        }
+      }
+
+      if (allSparse) {
+        (*res)[dim + 2].reset(fiber);
       }
     }
   }
