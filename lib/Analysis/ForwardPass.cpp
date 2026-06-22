@@ -10,26 +10,21 @@
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/TypeSwitch.h"
 
-Result proteus::ForwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
+void proteus::ForwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
   for (auto &op : block->getOperations()) {
-    if (analysis.visit<ForwardPass>(op).failed()) {
-      return op.emitError("Proteus failed to properly visit op:")
-             << op.getName();
-    }
+    analysis.visit<ForwardPass>(op);
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visit(mlir::Operation &op,
-                                   SparsityEngine &analysis) {
+void proteus::ForwardPass::visit(mlir::Operation &op,
+                                 SparsityEngine &analysis) {
   if (op.getNumResults() != 1) {
-    return mlir::success();
+    return;
   }
 
   if (auto constOp = mlir::dyn_cast<mlir::arith::ConstantOp>(&op)) {
     SeedPass::seedConstant(constOp, analysis);
-    return mlir::success();
+    return;
   }
 
   std::optional<SparsityLattice> lattice;
@@ -45,77 +40,43 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
   if (lattice.has_value()) {
     analysis.getState().try_emplace(op.getResult(0), lattice.value());
 
-    Result switchResult =
-        mlir::TypeSwitch<mlir::Operation *, Result>(&op)
-            .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp,
-                  mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
-                  mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
-                  mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
-                  mlir::linalg::Conv2DOp, mlir::linalg::Conv2DNchwFchwOp,
-                  mlir::linalg::Conv2DNhwcHwcfOp,
-                  mlir::linalg::PoolingNchwMaxOp,
-                  mlir::linalg::PoolingNchwSumOp, mlir::tensor::PadOp,
-                  mlir::tensor::ConcatOp>([&](auto typedOp) -> Result {
-              if (visitOp(typedOp, analysis).failed()) {
-                return op.emitError("Failed when visiting op: ")
-                       << op.getName();
-              }
-              return mlir::success();
-            })
-            .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
-                  mlir::linalg::FloorOp, mlir::linalg::NegFOp,
-                  mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
-                  mlir::linalg::CopyOp, mlir::linalg::TanhOp,
-                  mlir::linalg::SquareOp, mlir::linalg::SqrtOp>(
-                [&](auto) -> Result {
-                  return visitPassthroughOp(op, analysis);
-                })
-            .Default([](auto) { return mlir::success(); });
-    if (switchResult.failed()) {
-      return switchResult;
-    }
+    mlir::TypeSwitch<mlir::Operation *>(&op)
+        .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp,
+              mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
+              mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
+              mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
+              mlir::linalg::Conv2DOp, mlir::linalg::Conv2DNchwFchwOp,
+              mlir::linalg::Conv2DNhwcHwcfOp, mlir::linalg::PoolingNchwMaxOp,
+              mlir::linalg::PoolingNchwSumOp, mlir::tensor::PadOp,
+              mlir::tensor::ConcatOp>(
+            [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
+        .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
+              mlir::linalg::NegFOp, mlir::linalg::DivOp,
+              mlir::linalg::DivUnsignedOp, mlir::linalg::CopyOp,
+              mlir::linalg::TanhOp, mlir::linalg::SquareOp,
+              mlir::linalg::SqrtOp>(
+            [&](auto) -> void { visitPassthroughOp(op, analysis); })
+        .Default([](auto) {});
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::MatmulOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::MatmulOp &op,
+                                   SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op.getOperand(0));
   auto *rhs = analysis.getState(op.getOperand(1));
   auto *res = analysis.getState(op.getResult(0));
-
-  // We expect that all lattices are contained within the lattice map at this
-  // point, if not, we probably have not implemented a tranfer function that
-  // could yield results into a matmul op
-  if ((lhs == nullptr) || (rhs == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated"
-                        "properly in op: ")
-           << mlir::linalg::MatmulOp::getOperationName();
-  }
 
   // We want to keep any sparsity already in the result, this could happen
   // if an attribute is set on a matmul operation
   (*res)[0] &= (*lhs)[0];
   (*res)[1] &= (*rhs)[1];
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::AddOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::AddOp &op,
+                                   SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op.getOperand(0));
   auto *rhs = analysis.getState(op.getOperand(1));
   auto *res = analysis.getState(op.getResult(0));
-
-  // We expect that all lattices are contained within the lattice map at this
-  // point, if not, we probably have not implemented a tranfer function that
-  // could yield results into an add op
-  if ((lhs == nullptr) || (rhs == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated"
-                        "properly in op: ")
-           << mlir::linalg::AddOp::getOperationName();
-  }
 
   for (std::size_t i = 0; i < res->rank(); i++) {
     // llvm::BitVector does not support binary operations such as lhs & rhs
@@ -125,79 +86,50 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::AddOp &op,
     // Again we need to respect any preexisting lattices
     (*res)[i] = temp;
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp &op,
+                                   SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op->getOperand(0));
   auto *rhs = analysis.getState(op->getOperand(1));
   auto *res = analysis.getState(op->getResult(0));
-
-  if ((lhs == nullptr) || (rhs == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::MatvecOp::getOperationName();
-  }
 
   if ((*rhs)[0].none()) {
     (*res)[0].reset();
   } else {
     (*res)[0] = (*lhs)[0];
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp &op,
+                                   SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op->getOperand(0));
   auto *rhs = analysis.getState(op->getOperand(1));
   auto *res = analysis.getState(op->getResult(0));
-
-  if ((lhs == nullptr) || (rhs == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::VecmatOp::getOperationName();
-  }
 
   if ((*lhs)[0].none()) {
     (*res)[0].reset();
   } else {
     (*res)[0] = (*rhs)[1];
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::TransposeOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::TransposeOp &op,
+                                   SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
   auto *res = analysis.getState(op->getResult(0));
-
-  // TODO: Do an assertion here, for each transfer function
-  if ((input == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::TransposeOp::getOperationName();
-  }
 
   llvm::ArrayRef<int64_t> perm = op.getPermutation();
   for (std::size_t i = 0; i < res->rank(); i++) {
     (*res)[i] = (*input)[perm[i]];
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
+                                   SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op->getOperand(0));
   auto *rhs = analysis.getState(op->getOperand(1));
   auto *res = analysis.getState(op->getResult(0));
-
-  if ((lhs == nullptr) || (rhs == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::BatchMatmulOp::getOperationName();
-  }
 
   // Transfer sparsity for the batch dimension
   (*res)[0] &= (*lhs)[0];
@@ -206,20 +138,13 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
   (*res)[1] &= (*lhs)[1];
   // Column slice sparsity in maintained from the rhs
   (*res)[2] &= (*rhs)[2];
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::FillOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::FillOp &op,
+                                   SparsityEngine &analysis) {
   auto *res = analysis.getState(op.getResult(0));
   mlir::Value cst = op.getInputs()[0];
   auto cstOp = cst.getDefiningOp<mlir::arith::ConstantOp>();
-
-  if (res == nullptr || !cstOp) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::FillOp::getOperationName();
-  }
 
   bool isZero = false;
 
@@ -238,19 +163,12 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::FillOp &op,
       (*res)[i].reset();
     }
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::BroadcastOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::BroadcastOp &op,
+                                   SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getInput());
   auto *res = analysis.getState(op->getResult(0));
-
-  if ((input == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::BroadcastOp::getOperationName();
-  }
 
   // Get the dimensions attribute from the op, these dimensions are essentially
   // all the new dimensions that will be added to the tensor
@@ -274,25 +192,18 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::BroadcastOp &op,
     // we propagate the sparsity to the current rank's bitvector
     (*res)[i] = (*input)[inputDim++];
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
+                                   SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
   auto *res = analysis.getState(op.getResult());
-
-  if ((input == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::tensor::PadOp::getOperationName();
-  }
 
   // Check all high pads for static padding
   for (auto &pad : op.getMixedLowPad()) {
     // If a padding is not a static, we cannot propagate sparsity
     if (!mlir::getConstantIntValue(pad)) {
-      return mlir::success();
+      return;
     };
   }
 
@@ -300,8 +211,8 @@ Result proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
   for (auto &pad : op.getMixedHighPad()) {
     // If a padding is not a static, we cannot propagate sparsity
     if (!mlir::getConstantIntValue(pad)) {
-      return mlir::success();
-    };
+      return;
+    }
   }
 
   auto pads = op.getMixedLowPad();
@@ -319,18 +230,11 @@ Result proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
       }
     }
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
+                                   SparsityEngine &analysis) {
   auto *res = analysis.getState(op->getResult(0));
-
-  if (res == nullptr) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::tensor::ConcatOp::getOperationName();
-  }
 
   auto concatDim = op.getDim();
 
@@ -346,11 +250,6 @@ Result proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
   // over the operands this time
   for (std::size_t i = 0; i < op.getNumOperands(); i++) {
     auto *operand = analysis.getState(op.getOperand(i));
-
-    if (operand == nullptr) {
-      return op.emitError("The lattices are not propagated properly in op: ")
-             << mlir::tensor::ConcatOp::getOperationName();
-    }
 
     // For each dimension that is not the dimension we are concatenating on
     // we will use the OR operator to ensure that sparsity is propagated when
@@ -372,20 +271,12 @@ Result proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
       }
     }
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
+                                   SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
-  auto *filter = analysis.getState(op.getOperand(1));
   auto *res = analysis.getState(op.getResult(0));
-
-  if ((input == nullptr) || (filter == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::Conv2DOp::getOperationName();
-  }
 
   auto filterType =
       llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
@@ -413,20 +304,13 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
       }
     }
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
+                                   SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
   auto *filter = analysis.getState(op.getOperand(1));
   auto *res = analysis.getState(op.getResult(0));
-
-  if ((input == nullptr) || (filter == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::Conv2DNchwFchwOp::getOperationName();
-  }
 
   auto filterType =
       llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
@@ -460,20 +344,13 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
       }
     }
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
+                                   SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
   auto *filter = analysis.getState(op.getOperand(1));
   auto *res = analysis.getState(op.getResult(0));
-
-  if ((input == nullptr) || (filter == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::Conv2DNhwcHwcfOp::getOperationName();
-  }
 
   auto filterType =
       llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
@@ -506,19 +383,12 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
       }
     }
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwMaxOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwMaxOp &op,
+                                   SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
   auto *res = analysis.getState(op.getResult(0));
-
-  if ((input == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::PoolingNchwMaxOp::getOperationName();
-  }
 
   auto kernelType =
       llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
@@ -550,19 +420,12 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwMaxOp &op,
       }
     }
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwSumOp &op,
-                                     SparsityEngine &analysis) {
+void proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwSumOp &op,
+                                   SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
   auto *res = analysis.getState(op.getResult(0));
-
-  if ((input == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << mlir::linalg::PoolingNchwSumOp::getOperationName();
-  }
 
   auto kernelType =
       llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
@@ -594,23 +457,14 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwSumOp &op,
       }
     }
   }
-
-  return mlir::success();
 }
 
-Result proteus::ForwardPass::visitPassthroughOp(mlir::Operation &op,
-                                                SparsityEngine &analysis) {
+void proteus::ForwardPass::visitPassthroughOp(mlir::Operation &op,
+                                              SparsityEngine &analysis) {
   auto *operand = analysis.getState(op.getOperand(0));
   auto *res = analysis.getState(op.getOpResult(0));
-
-  if ((operand == nullptr) || (res == nullptr)) {
-    return op.emitError("The lattices are not propagated properly in op: ")
-           << op.getName();
-  }
 
   for (std::size_t i = 0; i < res->rank(); i++) {
     (*res)[i] = (*operand)[i];
   }
-
-  return mlir::success();
 }

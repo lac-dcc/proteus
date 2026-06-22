@@ -3,8 +3,6 @@
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Value.h"
 
-using Result = mlir::LogicalResult;
-
 namespace proteus {
 
 class SparsityEngine;
@@ -22,7 +20,7 @@ struct SeedPass {
    * @param analysis The analysis object owning the lattice state to update.
    * @return success() if seeding completed without errors, failure() otherwise.
    */
-  static Result run(mlir::Block *block, SparsityEngine &analysis);
+  static void run(mlir::Block *block, SparsityEngine &analysis);
 
   /**
    * @brief Seeds the lattice for a single arith.constant op from its value.

@@ -7,32 +7,11 @@
 
 #include "mlir/IR/Value.h"
 
-Result proteus::SparsityEngine::run(mlir::Block *block) {
-  if (run<SeedPass>(block).failed()) {
-    llvm::errs() << "[SparsityEngine] SeedPass failed on block: "
-                 << block->getParentOp()->getName() << "\n";
-    llvm_unreachable("SeedPass should never fail");
-  }
-
-  if (run<ForwardPass>(block).failed()) {
-    llvm::errs() << "[SparsityEngine] ForwardPass failed on block: "
-                 << block->getParentOp()->getName() << "\n";
-    llvm_unreachable("ForwardPass should never fail");
-  }
-
-  if (run<LateralPass>(block).failed()) {
-    llvm::errs() << "[SparsityEngine] LateralPass failed on block: "
-                 << block->getParentOp()->getName() << "\n";
-    llvm_unreachable("LateralPass should never fail");
-  }
-
-  if (run<BackwardPass>(block).failed()) {
-    llvm::errs() << "[SparsityEngine] BackwardPass failed on block: "
-                 << block->getParentOp()->getName() << "\n";
-    llvm_unreachable("BackwardPass should never fail");
-  }
-
-  return mlir::success();
+void proteus::SparsityEngine::run(mlir::Block *block) {
+  run<SeedPass>(block);
+  run<ForwardPass>(block);
+  run<LateralPass>(block);
+  run<BackwardPass>(block);
 }
 
 const proteus::LatticeMap &proteus::SparsityEngine::getState() const {
@@ -64,14 +43,14 @@ proteus::SparsityEngine::getState(const mlir::Value &value) const {
 }
 
 template <typename PassType>
-Result proteus::SparsityEngine::run(mlir::Block *block) {
-  return PassType::run(block, *this);
+void proteus::SparsityEngine::run(mlir::Block *block) {
+  PassType::run(block, *this);
 }
 
 template <typename PassType>
-Result proteus::SparsityEngine::visit(mlir::Operation &op) {
-  return PassType::visit(op, *this);
+void proteus::SparsityEngine::visit(mlir::Operation &op) {
+  PassType::visit(op, *this);
 }
 
-template Result
+template void
 proteus::SparsityEngine::visit<proteus::ForwardPass>(mlir::Operation &);

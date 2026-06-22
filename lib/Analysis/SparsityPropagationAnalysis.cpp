@@ -14,9 +14,7 @@ void SparsityPropagationAnalysis::runOnOperation() {
   SparsityEngine sa;
 
   for (auto &block : getOperation().getBody()) {
-    if (sa.run(&block).failed()) {
-      return;
-    }
+    sa.run(&block);
   }
 
   getOperation().walk([&](mlir::Operation *op) {

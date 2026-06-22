@@ -20,14 +20,14 @@ resolveArgLattice(mlir::BlockArgument arg, mlir::func::FuncOp funcOp) {
   return proteus::SparsityLattice::defaultFromValue(arg);
 }
 
-Result proteus::SeedPass::run(mlir::Block *block, SparsityEngine &analysis) {
+void proteus::SeedPass::run(mlir::Block *block, SparsityEngine &analysis) {
   if (!block->isEntryBlock()) {
-    return mlir::success();
+    return;
   }
 
   auto funcOp = llvm::dyn_cast<mlir::func::FuncOp>(block->getParentOp());
   if (!funcOp) {
-    return mlir::success();
+    return;
   }
 
   for (auto &arg : block->getArguments()) {
@@ -36,8 +36,6 @@ Result proteus::SeedPass::run(mlir::Block *block, SparsityEngine &analysis) {
       analysis.getState().try_emplace(arg, lattice.value());
     }
   }
-
-  return mlir::success();
 }
 
 void proteus::SeedPass::markSlices(uint64_t index,

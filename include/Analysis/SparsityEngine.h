@@ -23,7 +23,7 @@ public:
    * @return success() if all passes completed without errors, failure()
    *         otherwise.
    */
-  mlir::LogicalResult run(mlir::Block *block);
+  void run(mlir::Block *block);
 
   /**
    * @brief Returns a read-only reference to the full lattice map.
@@ -61,7 +61,7 @@ public:
    * @param op The operation to visit.
    * @return success() if inference succeeded, failure() otherwise.
    */
-  template <typename PassType> Result visit(mlir::Operation &op);
+  template <typename PassType> void visit(mlir::Operation &op);
 
   /**
    * @brief Infers sparsity for a linalg.matmul operation.
@@ -77,7 +77,7 @@ private:
    * @param block The block to run the pass over.
    * @return success() or failure() as returned by PassType::run.
    */
-  template <typename PassType> Result run(mlir::Block *block);
+  template <typename PassType> void run(mlir::Block *block);
 
   LatticeMap state;
 };
