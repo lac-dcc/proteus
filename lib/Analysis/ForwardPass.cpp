@@ -1,9 +1,11 @@
 #include "Analysis/ForwardPass.h"
 
+#include "Analysis/SeedPass.h"
 #include "Analysis/SparsityEngine.h"
 
 #include "mlir/Dialect/Arith/IR/Arith.h"
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
+#include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/OpDefinition.h"
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/TypeSwitch.h"
@@ -22,6 +24,11 @@ Result proteus::ForwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
 Result proteus::ForwardPass::visit(mlir::Operation &op,
                                    SparsityEngine &analysis) {
   if (op.getNumResults() != 1) {
+    return mlir::success();
+  }
+
+  if (auto constOp = mlir::dyn_cast<mlir::arith::ConstantOp>(&op)) {
+    SeedPass::seedConstant(constOp, analysis);
     return mlir::success();
   }
 
@@ -164,6 +171,7 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::TransposeOp &op,
   auto *input = analysis.getState(op.getOperand(0));
   auto *res = analysis.getState(op->getResult(0));
 
+  // TODO: Do an assertion here, for each transfer function
   if ((input == nullptr) || (res == nullptr)) {
     return op.emitError("The lattices are not propagated properly in op: ")
            << mlir::linalg::TransposeOp::getOperationName();
