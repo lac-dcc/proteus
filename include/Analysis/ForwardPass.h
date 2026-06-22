@@ -154,6 +154,21 @@ private:
                         SparsityEngine &analysis);
 
   /**
+   * @brief Infers forward sparsity for a linalg.conv_2d_nhwc_hwcf operation.
+   *
+   * N and F dimensions pass through from input and filter respectively.
+   * Output row oh is sparse iff all input rows [oh*sH, oh*sH+(kH-1)*dH] are
+   * sparse. Output col ow is sparse iff all input cols [ow*sW, ow*sW+(kW-1)*dW]
+   * are sparse.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static Result visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
+                        SparsityEngine &analysis);
+
+  /**
    * @brief Infers forward sparsity for ops that pass sparsity through unchanged
    * from their single operand to their result (e.g. abs, ceil, tanh).
    *

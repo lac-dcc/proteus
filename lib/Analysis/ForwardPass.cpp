@@ -52,14 +52,14 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
                   mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
                   mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
                   mlir::linalg::Conv2DOp, mlir::linalg::Conv2DNchwFchwOp,
-                  mlir::tensor::PadOp, mlir::tensor::ConcatOp>(
-                [&](auto typedOp) -> Result {
-                  if (visitOp(typedOp, analysis).failed()) {
-                    return op.emitError("Failed when visiting op: ")
-                           << op.getName();
-                  }
-                  return mlir::success();
-                })
+                  mlir::linalg::Conv2DNhwcHwcfOp, mlir::tensor::PadOp,
+                  mlir::tensor::ConcatOp>([&](auto typedOp) -> Result {
+              if (visitOp(typedOp, analysis).failed()) {
+                return op.emitError("Failed when visiting op: ")
+                       << op.getName();
+              }
+              return mlir::success();
+            })
             .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
                   mlir::linalg::FloorOp, mlir::linalg::NegFOp,
                   mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
@@ -455,6 +455,52 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
 
       if (allSparse) {
         (*res)[dim + 2].reset(fiber);
+      }
+    }
+  }
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
+                                     SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *filter = analysis.getState(op.getOperand(1));
+  auto *res = analysis.getState(op.getResult(0));
+
+  if ((input == nullptr) || (filter == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::linalg::Conv2DNhwcHwcfOp::getOperationName();
+  }
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  llvm::SmallVector<int64_t, 2> strides(op.getStrides().getValues<int64_t>());
+  llvm::SmallVector<int64_t, 2> dilations(
+      op.getDilations().getValues<int64_t>());
+
+  // Sparsity for batches and channels is propagated in a passthrough fashion
+  (*res)[0] &= (*input)[0];
+  (*res)[3] &= (*filter)[3];
+
+  // Same idea as above with the Conv2DNchwFchwOp format, just dimensions are
+  // different this time
+  for (uint64_t dim = 0; dim < 2; dim++) {
+    int64_t kernelSize = filterType.getDimSize(dim);
+    int64_t stride = strides[dim];
+    int64_t dilation = dilations[dim];
+
+    for (std::size_t fiber = 0; fiber < (*res)[dim + 1].size(); fiber++) {
+      bool allSparse = true;
+      for (int64_t fFiber = 0; fFiber < kernelSize && allSparse; fFiber++) {
+        if ((*input)[dim + 1][(fiber * stride) + (fFiber * dilation)]) {
+          allSparse = false;
+        }
+      }
+
+      if (allSparse) {
+        (*res)[dim + 1].reset(fiber);
       }
     }
   }
