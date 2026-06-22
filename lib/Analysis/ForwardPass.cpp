@@ -51,14 +51,15 @@ Result proteus::ForwardPass::visit(mlir::Operation &op,
                   mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
                   mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
                   mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
-                  mlir::linalg::Conv2DOp, mlir::tensor::PadOp,
-                  mlir::tensor::ConcatOp>([&](auto typedOp) -> Result {
-              if (visitOp(typedOp, analysis).failed()) {
-                return op.emitError("Failed when visiting op: ")
-                       << op.getName();
-              }
-              return mlir::success();
-            })
+                  mlir::linalg::Conv2DOp, mlir::linalg::Conv2DNchwFchwOp,
+                  mlir::tensor::PadOp, mlir::tensor::ConcatOp>(
+                [&](auto typedOp) -> Result {
+                  if (visitOp(typedOp, analysis).failed()) {
+                    return op.emitError("Failed when visiting op: ")
+                           << op.getName();
+                  }
+                  return mlir::success();
+                })
             .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp,
                   mlir::linalg::FloorOp, mlir::linalg::NegFOp,
                   mlir::linalg::DivOp, mlir::linalg::DivUnsignedOp,
@@ -390,15 +391,15 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
   // Iterate through each rank of the resulting tensor
   for (std::size_t i = 0; i < res->rank(); i++) {
     // Walk through each fiber on that dimension
-    for (std::size_t dim = 0; dim < (*res)[i].size(); dim++) {
+    for (std::size_t fiber = 0; fiber < (*res)[i].size(); fiber++) {
       bool allSparse = true;
-      // Check whether there are fdim contiguous zeros, if there are the result
-      // of the convolution for the fiber is also sparse
-      for (int64_t fdim = 0; fdim < filterType.getDimSize(i) && allSparse;
-           fdim++) {
+      // Check whether there are f_fiber contiguous zeros, if there are the
+      // result of the convolution for the fiber is also sparse
+      for (int64_t fFiber = 0; fFiber < filterType.getDimSize(i) && allSparse;
+           fFiber++) {
         //  If not falsify the allSparse flag and continue with the rest of the
         //  fibers in the result
-        if ((*input)[i][dim + fdim]) {
+        if ((*input)[i][fiber + fFiber]) {
           allSparse = false;
         }
       }
@@ -406,7 +407,54 @@ Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
       // If the allSparse flag is true by the end of the above iteration,
       // this is where we make the resulting fiber sparse
       if (allSparse) {
-        (*res)[i].reset(dim);
+        (*res)[i].reset(fiber);
+      }
+    }
+  }
+
+  return mlir::success();
+}
+
+Result proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
+                                     SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *filter = analysis.getState(op.getOperand(1));
+  auto *res = analysis.getState(op.getResult(0));
+
+  if ((input == nullptr) || (filter == nullptr) || (res == nullptr)) {
+    return op.emitError("The lattices are not propagated properly in op: ")
+           << mlir::linalg::Conv2DNchwFchwOp::getOperationName();
+  }
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  llvm::SmallVector<int64_t, 2> strides(op.getStrides().getValues<int64_t>());
+  llvm::SmallVector<int64_t, 2> dilations(
+      op.getDilations().getValues<int64_t>());
+
+  // Sparsity for batches and channels is propagated in a passthrough fashion
+  (*res)[0] &= (*input)[0];
+  (*res)[1] &= (*filter)[0];
+
+  // We follow the same logic as we did we the simple conv2d case with the
+  // spatial dimensions
+  for (uint64_t dim = 0; dim < 2; dim++) {
+    int64_t kernelSize = filterType.getDimSize(dim + 2);
+    int64_t stride = strides[dim];
+    int64_t dilation = dilations[dim];
+
+    for (std::size_t fiber = 0; fiber < (*res)[dim + 2].size(); fiber++) {
+      bool allSparse = true;
+      for (int64_t fFiber = 0; fFiber < kernelSize && allSparse; fFiber++) {
+        // Only this time we need to account for specific stride and dilation
+        if ((*input)[dim + 2][(fiber * stride) + (fFiber * dilation)]) {
+          allSparse = false;
+        }
+      }
+
+      if (allSparse) {
+        (*res)[dim + 2].reset(fiber);
       }
     }
   }
