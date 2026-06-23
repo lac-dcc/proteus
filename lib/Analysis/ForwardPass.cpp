@@ -227,7 +227,9 @@ void proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
     for (std::size_t j = 0; j < (*input)[i].size(); j++) {
       // Padded fibers are correct, thus we set by the offset of the padding
       if ((*input)[i][j]) {
-        (*res)[i].set(j + lowPad.value());
+        if (lowPad.has_value()) {
+          (*res)[i].set(j + lowPad.value());
+        }
       }
     }
   }
