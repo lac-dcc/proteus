@@ -27,9 +27,11 @@ DEDICATED_OPS = {
     "linalg.conv_2d",
     "linalg.conv_2d_nchw_fchw",
     "linalg.conv_2d_nhwc_hwcf",
+    "linalg.depthwise_conv_2d_nchw_chw",
     "linalg.pooling_nchw_max",
     "linalg.pooling_nchw_sum",
     "tensor.pad",
+    "tensor.empty",
     "tensor.concat",
 }
 

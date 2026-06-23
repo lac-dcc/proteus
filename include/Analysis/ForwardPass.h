@@ -123,6 +123,18 @@ private:
   static void visitOp(mlir::tensor::ConcatOp &op, SparsityEngine &analysis);
 
   /**
+   * @brief Infers forward sparsity for a tensor.empty operation.
+   *
+   * There is nothing to implement here, this is added to just indicate the
+   * support for the operation. The default behaviour will suffice.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static void visitOp(mlir::tensor::EmptyOp &op, SparsityEngine &analysis);
+
+  /**
    * @brief Infers forward sparsity for a linalg.conv_2d operation.
    *
    * @param op The op to analyse.
@@ -179,6 +191,16 @@ private:
    * @return success() if inference succeeded, failure() otherwise.
    */
   static void visitOp(mlir::linalg::PoolingNchwSumOp &op,
+                      SparsityEngine &analysis);
+
+  /**
+   * @brief Infers forward sparsity for a tensor.expand_shape operation.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static void visitOp(mlir::tensor::ExpandShapeOp &op,
                       SparsityEngine &analysis);
 
   /**

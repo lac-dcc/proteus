@@ -49,7 +49,8 @@ void proteus::ForwardPass::visit(mlir::Operation &op,
               mlir::linalg::Conv2DNhwcHwcfOp, mlir::linalg::PoolingNchwMaxOp,
               mlir::linalg::PoolingNchwSumOp,
               mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
-              mlir::tensor::ConcatOp>(
+              mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
+              mlir::tensor::ExpandShapeOp>(
             [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
         .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
               mlir::linalg::NegFOp, mlir::linalg::DivOp,
@@ -276,6 +277,9 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
   }
 }
 
+void proteus::ForwardPass::visitOp(mlir::tensor::EmptyOp &op,
+                                   SparsityEngine &analysis) {}
+
 void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
                                    SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
@@ -497,6 +501,61 @@ void proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwSumOp &op,
       if (allSparse) {
         (*res)[dim + 2].reset(fiber);
       }
+    }
+  }
+}
+
+void proteus::ForwardPass::visitOp(mlir::tensor::ExpandShapeOp &op,
+                                   SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *res = analysis.getState(op->getResult(0));
+
+  auto inputType =
+      mlir::cast<mlir::RankedTensorType>(op.getOperand(0).getType());
+  auto resType = mlir::cast<mlir::RankedTensorType>(op->getResult(0).getType());
+
+  // Reassociation is the MLIR attribute attached to the tensor.expand_shape op
+  // that holds information about how the expansion of ranks is done for the
+  // resulting tensor
+  auto reassociation = op.getReassociationIndices();
+
+  for (auto [srcDim, group] : llvm::enumerate(reassociation)) {
+    int64_t srcDimSize = inputType.getDimSize(srcDim);
+
+    // For each dimension in the input we need to know how to iterate through
+    // the dimensions of the reshaped result tensor through row major flattening
+    // using flat indeces. For example: (i, j) lives at a flat index of i *
+    // coefficient[0] + j and this can be done recursively across N dimensions.
+    // The code below extracts those coefficients so we can later identify the
+    // position of a bit in the resulting tensor
+    llvm::SmallVector<int64_t> coefficients(group.size());
+    // The last coefficient for any rank is always one
+    coefficients.back() = 1;
+    // Now we go through each position backwards, one at a time calculating the
+    // next coefficient based on the dimension and coefficient of the previous
+    // position
+    for (int p = static_cast<int>(group.size()) - 2; p >= 0; --p) {
+      coefficients[p] = coefficients[p + 1] * resType.getDimSize(group[p + 1]);
+    }
+
+    for (auto [p, outDim] : llvm::enumerate(group)) {
+      int64_t outSize = resType.getDimSize(outDim);
+
+      // We create a new all sparse bitvector that we will explicitly compute
+      llvm::BitVector computed(outSize, false);
+      for (int64_t i = 0; i < srcDimSize; ++i) {
+        // If there exists a bit that is set in the input
+        if ((*input)[srcDim][i]) {
+          // Set the corresponding fiber in the resulting tensor
+          // by using the domain decomposition coefficients
+          // calculated above
+          int64_t j = (i / coefficients[p]) % outSize;
+          computed.set(j);
+        }
+      }
+
+      // Have the computed bitvector included in the resulting tensor
+      (*res)[outDim] &= computed;
     }
   }
 }
