@@ -50,7 +50,7 @@ void proteus::ForwardPass::visit(mlir::Operation &op,
               mlir::linalg::PoolingNchwSumOp,
               mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
               mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
-              mlir::tensor::ExpandShapeOp>(
+              mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp>(
             [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
         .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
               mlir::linalg::NegFOp, mlir::linalg::DivOp,
@@ -557,6 +557,68 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ExpandShapeOp &op,
       // Have the computed bitvector included in the resulting tensor
       (*res)[outDim] &= computed;
     }
+  }
+}
+
+void proteus::ForwardPass::visitOp(mlir::tensor::ExtractSliceOp &op,
+                                   SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *res = analysis.getState(op->getResult(0));
+
+  // MLIR attributes attached to the tensor.extract_slice op that hold
+  // information on where each slice begins, the size of the slice, and the size
+  // of the stride if the accesses are strided
+  auto offsets = op.getMixedOffsets();
+  auto sizes = op.getMixedSizes();
+  auto strides = op.getMixedStrides();
+
+  // Helper lambda function that check that are items in the above attributes
+  // are constants If the case of dynamic attributes, we cannot propagate
+  // sparsity
+  auto checkConst = [](const auto &vector) {
+    for (auto &item : vector) {
+      if (!mlir::getConstantIntValue(item).has_value()) {
+        return;
+      }
+    }
+  };
+
+  checkConst(offsets);
+  checkConst(sizes);
+  checkConst(strides);
+
+  uint64_t resDim = 0;
+  for (uint64_t srcDim = 0; srcDim < offsets.size(); srcDim++) {
+    auto size = mlir::getConstantIntValue(sizes[srcDim]);
+
+    // In case that the size is equal to 1, the source dimension is reduced and
+    // there exists no corresponding result dimension, which means we should
+    // skip
+    if (size.has_value() && size.value() == 1) {
+      continue;
+    }
+
+    int64_t offset = mlir::getConstantIntValue(offsets[srcDim]).value();
+    int64_t stride = mlir::getConstantIntValue(strides[srcDim]).value();
+
+    // Same as with what we did with tensor.expand_shape, we will create
+    // an initial bitvector that we will explicitly construct from the sparsity
+    // information of the corresponding fibers in the input tensor
+    llvm::BitVector computed(size.value(), false);
+    for (int64_t j = 0; j < size.value(); ++j) {
+      // This formula gives as the fiber in the input tensor for the current
+      // dimension
+      int64_t srcFiber = offset + (j * stride);
+      // If that fiber is set, then the corresponding fiber in the result tensor
+      // should also be set
+      if ((*input)[srcDim][srcFiber]) {
+        computed.set(j);
+      }
+    }
+
+    // Pass the computed bitvector to the result
+    (*res)[resDim] &= computed;
+    ++resDim;
   }
 }
 

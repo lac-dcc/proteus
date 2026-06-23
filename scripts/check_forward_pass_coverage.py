@@ -31,8 +31,10 @@ DEDICATED_OPS = {
     "linalg.pooling_nchw_max",
     "linalg.pooling_nchw_sum",
     "tensor.pad",
+    "tensor.expand_shape",
     "tensor.empty",
     "tensor.concat",
+    "tensor.extract_slice",
 }
 
 # Ops handled by visitPassthroughOp
