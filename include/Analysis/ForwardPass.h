@@ -152,6 +152,16 @@ private:
                       SparsityEngine &analysis);
 
   /**
+   * @brief Infers forward sparsity for linalg.depthwise_conv_2d_nchw_chw
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static void visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
+                      SparsityEngine &analysis);
+
+  /**
    * @brief Infers forward sparsity for linalg.pooling_nchw_max
    *
    * @param op The op to analyse.

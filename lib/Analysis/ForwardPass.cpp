@@ -47,7 +47,8 @@ void proteus::ForwardPass::visit(mlir::Operation &op,
               mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
               mlir::linalg::Conv2DOp, mlir::linalg::Conv2DNchwFchwOp,
               mlir::linalg::Conv2DNhwcHwcfOp, mlir::linalg::PoolingNchwMaxOp,
-              mlir::linalg::PoolingNchwSumOp, mlir::tensor::PadOp,
+              mlir::linalg::PoolingNchwSumOp,
+              mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
               mlir::tensor::ConcatOp>(
             [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
         .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
@@ -380,6 +381,45 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
 
       if (allSparse) {
         (*res)[dim + 1].reset(fiber);
+      }
+    }
+  }
+}
+
+void proteus::ForwardPass::visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
+                                   SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getOperand(0));
+  auto *filter = analysis.getState(op.getOperand(1));
+  auto *res = analysis.getState(op.getResult(0));
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  llvm::SmallVector<int64_t, 2> strides(op.getStrides().getValues<int64_t>());
+  llvm::SmallVector<int64_t, 2> dilations(
+      op.getDilations().getValues<int64_t>());
+
+  (*res)[0] &= (*input)[0];
+  // Channels here convolve independently and so the channel dimension in the
+  // depthwise case will depend on the sparsity of both the input and the filter
+  (*res)[1] &= (*input)[1];
+  (*res)[1] &= (*filter)[0];
+
+  for (uint64_t dim = 0; dim < 2; dim++) {
+    int64_t kernelSize = filterType.getDimSize(dim + 1);
+    int64_t stride = strides[dim];
+    int64_t dilation = dilations[dim];
+
+    for (std::size_t fiber = 0; fiber < (*res)[dim + 2].size(); fiber++) {
+      bool allSparse = true;
+      for (int64_t fFiber = 0; fFiber < kernelSize && allSparse; fFiber++) {
+        if ((*input)[dim + 2][(fiber * stride) + (fFiber * dilation)]) {
+          allSparse = false;
+        }
+      }
+
+      if (allSparse) {
+        (*res)[dim + 2].reset(fiber);
       }
     }
   }
