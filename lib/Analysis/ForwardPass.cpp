@@ -50,7 +50,8 @@ void proteus::ForwardPass::visit(mlir::Operation &op,
               mlir::linalg::PoolingNchwSumOp,
               mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
               mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
-              mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp>(
+              mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp,
+              mlir::tensor::CollapseShapeOp>(
             [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
         .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
               mlir::linalg::NegFOp, mlir::linalg::DivOp,
@@ -619,6 +620,54 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ExtractSliceOp &op,
     // Pass the computed bitvector to the result
     (*res)[resDim] &= computed;
     ++resDim;
+  }
+}
+
+void proteus::ForwardPass::visitOp(mlir::tensor::CollapseShapeOp &op,
+                                   SparsityEngine &analysis) {
+  auto *input = analysis.getState(op.getSrc());
+  auto *res = analysis.getState(op->getResult(0));
+
+  auto inputType = mlir::cast<mlir::RankedTensorType>(op.getSrc().getType());
+  auto resType = mlir::cast<mlir::RankedTensorType>(op->getResult(0).getType());
+
+  // Reassociation is again an attribute attached to the tensor.collapse_shape
+  // much like tensor.expand_shape that holds information about the way the
+  // tensor will collapse into the resulting tensor
+  auto reassociation = op.getReassociationIndices();
+
+  for (auto [outDim, group] : llvm::enumerate(reassociation)) {
+    int64_t outSize = resType.getDimSize(outDim);
+
+    // Again we extract the row major single index coefficients like we did with
+    // tensor.expand_shape
+    llvm::SmallVector<int64_t> coefficients(group.size());
+    coefficients.back() = 1;
+    for (int p = static_cast<int>(group.size()) - 2; p >= 0; --p) {
+      coefficients[p] =
+          coefficients[p + 1] * inputType.getDimSize(group[p + 1]);
+    }
+
+    // Same as with what we did with tensor.expand_shape, we will create
+    // an initial bitvector that we will explicitly construct from the sparsity
+    // information of the corresponding fibers in the input tensor
+    llvm::BitVector computed(outSize, false);
+    for (int64_t k = 0; k < outSize; ++k) {
+      bool allDense = true;
+
+      for (auto [p, srcDim] : llvm::enumerate(group)) {
+        int64_t srcFiber = (k / coefficients[p]) % inputType.getDimSize(srcDim);
+        if (!(*input)[srcDim][srcFiber]) {
+          allDense = false;
+        }
+      }
+
+      if (allDense) {
+        computed.set(k);
+      }
+    }
+
+    (*res)[outDim] &= computed;
   }
 }
 

@@ -35,6 +35,7 @@ DEDICATED_OPS = {
     "tensor.empty",
     "tensor.concat",
     "tensor.extract_slice",
+    "tensor.collapse_shape",
 }
 
 # Ops handled by visitPassthroughOp
