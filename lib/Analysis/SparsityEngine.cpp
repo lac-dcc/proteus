@@ -7,10 +7,22 @@
 
 #include "mlir/IR/Value.h"
 
-void proteus::SparsityEngine::run(mlir::Block *block) {
+void proteus::SparsityEngine::run(mlir::Block *block, PassStage stage) {
   run<SeedPass>(block);
+  if (stage == PassStage::Seed) {
+    return;
+  }
+
   run<ForwardPass>(block);
+  if (stage == PassStage::Forward) {
+    return;
+  }
+
   run<LateralPass>(block);
+  if (stage == PassStage::Lateral) {
+    return;
+  }
+
   run<BackwardPass>(block);
 }
 

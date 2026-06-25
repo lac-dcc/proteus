@@ -1,3 +1,5 @@
+#pragma once
+
 #include "Analysis/SparsityLattice.h"
 
 #include "mlir/IR/Value.h"
@@ -5,6 +7,8 @@
 using Result = mlir::LogicalResult;
 
 namespace proteus {
+
+enum class PassStage : uint8_t { Seed, Forward, Lateral, Backward };
 
 class SparsityEngine;
 
@@ -20,10 +24,11 @@ public:
    * Executes Seed → Forward → Lateral → Backward passes in order.
    *
    * @param block The MLIR block to analyse.
+   * @param stage Runs the analysis up to the requested pass
    * @return success() if all passes completed without errors, failure()
    *         otherwise.
    */
-  void run(mlir::Block *block);
+  void run(mlir::Block *block, PassStage stage = PassStage::Backward);
 
   /**
    * @brief Returns a read-only reference to the full lattice map.

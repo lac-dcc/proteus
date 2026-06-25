@@ -1,6 +1,5 @@
 #include "Analysis/SparsityPropagationAnalysis.h"
 
-#include "Analysis/SparsityEngine.h"
 #include "Analysis/SparsityLattice.h"
 #include "Analysis/Utilities.h"
 
@@ -9,12 +8,40 @@
 #include "mlir/Pass/Pass.h"
 
 namespace proteus {
+
+std::optional<PassStage>
+SparsityPropagationAnalysis::getPassStage(llvm::StringRef name) {
+  if (name == "seed") {
+    return PassStage::Seed;
+  }
+  if (name == "forward") {
+    return PassStage::Forward;
+  }
+  if (name == "lateral") {
+    return PassStage::Lateral;
+  }
+  if (name == "backward") {
+    return PassStage::Backward;
+  }
+
+  return std::nullopt;
+}
+
 void SparsityPropagationAnalysis::runOnOperation() {
 
-  SparsityEngine sa;
+  auto stage = getPassStage(passStage);
 
+  if (!stage) {
+    getOperation().emitError()
+        << "spa-analysis: invalid last-pass value '" << passStage
+        << "'; expected one of: seed, forward, lateral, backward";
+    signalPassFailure();
+    return;
+  }
+
+  SparsityEngine sa;
   for (auto &block : getOperation().getBody()) {
-    sa.run(&block);
+    sa.run(&block, *stage);
   }
 
   getOperation().walk([&](mlir::Operation *op) {
