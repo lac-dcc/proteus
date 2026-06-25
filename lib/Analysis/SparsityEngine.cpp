@@ -66,3 +66,6 @@ void proteus::SparsityEngine::visit(mlir::Operation &op) {
 
 template void
 proteus::SparsityEngine::visit<proteus::ForwardPass>(mlir::Operation &);
+
+template void
+proteus::SparsityEngine::visit<proteus::BackwardPass>(mlir::Operation &);
