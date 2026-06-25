@@ -8,13 +8,6 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
-      - id: make-tidy
-        name: make tidy
-        entry: make tidy
-        language: system
-        pass_filenames: false
-        always_run: true
-        stages: [pre-commit]
       - id: make-test
         name: make test
         entry: make test

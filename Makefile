@@ -1,5 +1,5 @@
 .PHONY: all config build set-style format test tidy watch clean docs \
-        dataset-build dataset-convert dataset-clean
+        dataset-build dataset-convert dataset-clean coverage-check
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 
@@ -48,3 +48,6 @@ dataset-convert: dataset-build
 
 dataset-clean:
 	rm -rf mlir_out
+
+coverage-check:
+	python3 scripts/check_forward_pass_coverage.py

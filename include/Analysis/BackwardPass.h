@@ -18,6 +18,6 @@ struct BackwardPass {
    * @return success() if the pass completed without errors, failure()
    * otherwise.
    */
-  static Result run(mlir::Block *block, SparsityEngine &analysis);
+  static void run(mlir::Block *block, SparsityEngine &analysis);
 };
 } // namespace proteus

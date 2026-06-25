@@ -7,32 +7,23 @@
 
 #include "mlir/IR/Value.h"
 
-Result proteus::SparsityEngine::run(mlir::Block *block) {
-  if (run<SeedPass>(block).failed()) {
-    llvm::errs() << "[SparsityEngine] SeedPass failed on block: "
-                 << block->getParentOp()->getName() << "\n";
-    llvm_unreachable("SeedPass should never fail");
+void proteus::SparsityEngine::run(mlir::Block *block, PassStage stage) {
+  run<SeedPass>(block);
+  if (stage == PassStage::Seed) {
+    return;
   }
 
-  if (run<ForwardPass>(block).failed()) {
-    llvm::errs() << "[SparsityEngine] ForwardPass failed on block: "
-                 << block->getParentOp()->getName() << "\n";
-    llvm_unreachable("ForwardPass should never fail");
+  run<ForwardPass>(block);
+  if (stage == PassStage::Forward) {
+    return;
   }
 
-  if (run<LateralPass>(block).failed()) {
-    llvm::errs() << "[SparsityEngine] LateralPass failed on block: "
-                 << block->getParentOp()->getName() << "\n";
-    llvm_unreachable("LateralPass should never fail");
+  run<LateralPass>(block);
+  if (stage == PassStage::Lateral) {
+    return;
   }
 
-  if (run<BackwardPass>(block).failed()) {
-    llvm::errs() << "[SparsityEngine] BackwardPass failed on block: "
-                 << block->getParentOp()->getName() << "\n";
-    llvm_unreachable("BackwardPass should never fail");
-  }
-
-  return mlir::success();
+  run<BackwardPass>(block);
 }
 
 const proteus::LatticeMap &proteus::SparsityEngine::getState() const {
@@ -64,14 +55,14 @@ proteus::SparsityEngine::getState(const mlir::Value &value) const {
 }
 
 template <typename PassType>
-Result proteus::SparsityEngine::run(mlir::Block *block) {
-  return PassType::run(block, *this);
+void proteus::SparsityEngine::run(mlir::Block *block) {
+  PassType::run(block, *this);
 }
 
 template <typename PassType>
-Result proteus::SparsityEngine::visit(mlir::Operation &op) {
-  return PassType::visit(op, *this);
+void proteus::SparsityEngine::visit(mlir::Operation &op) {
+  PassType::visit(op, *this);
 }
 
-template Result
+template void
 proteus::SparsityEngine::visit<proteus::ForwardPass>(mlir::Operation &);

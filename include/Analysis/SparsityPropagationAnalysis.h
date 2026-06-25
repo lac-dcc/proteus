@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Analysis/SparsityEngine.h"
+
 #include "mlir/Dialect/Func/IR/FuncOps.h"
 #include "mlir/Pass/Pass.h"
 
@@ -33,6 +35,8 @@ struct SparsityPropagationAnalysis
     return pass;
   }
 
+  static std::optional<PassStage> getPassStage(llvm::StringRef name);
+
   Pass::Option<bool> latticeDump{
       *this, "lattice-dump",
       llvm::cl::desc("Debug utility for showcasing lattices on results."),
@@ -42,6 +46,11 @@ struct SparsityPropagationAnalysis
       *this, "state-dump",
       llvm::cl::desc("Debug utility for showcasing DenseMap Lattice state."),
       llvm::cl::init(false)};
+
+  Pass::Option<std::string> passStage{
+      *this, "pass-stage",
+      llvm::cl::desc("Stop after this pass: seed, forward, lateral, backward."),
+      llvm::cl::init("backward")};
 };
 
 std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis();
