@@ -1,4 +1,4 @@
-// RUN: proteus-opt --spa-analysis="lattice-dump=true" %s | FileCheck %s
+// RUN: proteus-opt --spa-analysis="lattice-dump=true pass-stage=forward" %s | FileCheck %s
 
 // CHECK-LABEL: func.func @splat_zero_float
 func.func @splat_zero_float() -> tensor<3x4xf32> {

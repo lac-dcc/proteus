@@ -1,4 +1,4 @@
-// RUN: proteus-opt --spa-analysis="lattice-dump=true" %s | FileCheck %s
+// RUN: proteus-opt --spa-analysis="lattice-dump=true pass-stage=forward" %s | FileCheck %s
 
 // CHECK-LABEL: func.func @depthwise_conv2d_nchw_chw_filter_channel_sparsity
 func.func @depthwise_conv2d_nchw_chw_filter_channel_sparsity(

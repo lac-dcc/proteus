@@ -1,4 +1,4 @@
-// RUN: proteus-opt --spa-analysis="lattice-dump=true" %s | FileCheck %s
+// RUN: proteus-opt --spa-analysis="lattice-dump=true pass-stage=forward" %s | FileCheck %s
 
 // CHECK-LABEL: func.func @expand_shape_general_split
 func.func @expand_shape_general_split(
