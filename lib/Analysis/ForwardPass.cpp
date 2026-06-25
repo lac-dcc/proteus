@@ -18,49 +18,63 @@ void proteus::ForwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
 
 void proteus::ForwardPass::visit(mlir::Operation &op,
                                  SparsityEngine &analysis) {
-  if (op.getNumResults() != 1) {
-    return;
-  }
 
+  // We first seed the constants with their respective lattices, which we should
+  // be able to infer at compile time, and return
   if (auto constOp = mlir::dyn_cast<mlir::arith::ConstantOp>(&op)) {
     SeedPass::seedConstant(constOp, analysis);
     return;
   }
 
-  std::optional<SparsityLattice> lattice;
+  // linalg.generic operations may have multiple results and so for each result
+  // we need to create a default lattice and emplace to the analysis state for
+  // each result
+  for (auto result : op.getResults()) {
+    if (auto lattice = SparsityLattice::defaultFromValue(result)) {
+      analysis.getState().try_emplace(result, lattice.value());
+    }
+  }
 
+  // In the case where there are multiple results in the linalg.generic we will
+  // not be moving forward with the forward pass, this may be implemented in
+  // later versions
+  if (op.getNumResults() != 1) {
+    return;
+  }
+
+  // Here we check whether there already exists a lattice in the result
+  // operation and attach that to the state, but it might not really make sense,
+  // there may not be a usecase for this
   if (op.hasAttr("proteus.lattice")) {
     auto attr = op.getAttr("proteus.lattice");
     auto arrayAttr = llvm::cast<mlir::ArrayAttr>(attr);
-    lattice = SparsityLattice::fromAttr(arrayAttr);
-  } else {
-    lattice = SparsityLattice::defaultFromValue(op.getResult(0));
+    if (auto lattice = SparsityLattice::fromAttr(arrayAttr)) {
+      if (auto *entry = analysis.getState(op.getResult(0))) {
+        *entry = lattice.value();
+      }
+    }
   }
 
-  if (lattice.has_value()) {
-    analysis.getState().try_emplace(op.getResult(0), lattice.value());
-
-    mlir::TypeSwitch<mlir::Operation *>(&op)
-        .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp,
-              mlir::linalg::MatvecOp, mlir::linalg::VecmatOp,
-              mlir::linalg::TransposeOp, mlir::linalg::BatchMatmulOp,
-              mlir::linalg::FillOp, mlir::linalg::BroadcastOp,
-              mlir::linalg::Conv2DOp, mlir::linalg::Conv2DNchwFchwOp,
-              mlir::linalg::Conv2DNhwcHwcfOp, mlir::linalg::PoolingNchwMaxOp,
-              mlir::linalg::PoolingNchwSumOp,
-              mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
-              mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
-              mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp,
-              mlir::tensor::CollapseShapeOp>(
-            [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
-        .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
-              mlir::linalg::NegFOp, mlir::linalg::DivOp,
-              mlir::linalg::DivUnsignedOp, mlir::linalg::CopyOp,
-              mlir::linalg::TanhOp, mlir::linalg::SquareOp,
-              mlir::linalg::SqrtOp>(
-            [&](auto) -> void { visitPassthroughOp(op, analysis); })
-        .Default([](auto) {});
-  }
+  // Now based on the mlir operation we dispatch the appropriate transfer
+  // function
+  mlir::TypeSwitch<mlir::Operation *>(&op)
+      .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp, mlir::linalg::MatvecOp,
+            mlir::linalg::VecmatOp, mlir::linalg::TransposeOp,
+            mlir::linalg::BatchMatmulOp, mlir::linalg::FillOp,
+            mlir::linalg::BroadcastOp, mlir::linalg::Conv2DOp,
+            mlir::linalg::Conv2DNchwFchwOp, mlir::linalg::Conv2DNhwcHwcfOp,
+            mlir::linalg::PoolingNchwMaxOp, mlir::linalg::PoolingNchwSumOp,
+            mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
+            mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
+            mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp,
+            mlir::tensor::CollapseShapeOp>(
+          [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
+      .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
+            mlir::linalg::NegFOp, mlir::linalg::DivOp,
+            mlir::linalg::DivUnsignedOp, mlir::linalg::CopyOp,
+            mlir::linalg::TanhOp, mlir::linalg::SquareOp, mlir::linalg::SqrtOp>(
+          [&](auto) -> void { visitPassthroughOp(op, analysis); })
+      .Default([](auto) {});
 }
 
 void proteus::ForwardPass::visitOp(mlir::linalg::MatmulOp &op,
