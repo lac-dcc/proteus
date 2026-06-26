@@ -233,6 +233,28 @@ private:
   static void visitOp(mlir::linalg::GenericOp &op, SparsityEngine &analysis);
 
   /**
+   * @brief Infers forward sparsity for the ReLU linalg.generic operation.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static mlir::LogicalResult visitGenericReluOp(mlir::linalg::GenericOp &op,
+                                                SparsityEngine &analysis);
+
+  /**
+   * @brief Infers forward sparsity for a linalg.generic operation that is
+   * elementwise and all functions in body are zero preserving
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static mlir::LogicalResult
+  visitGenericElementwiseZeroPreservingOp(mlir::linalg::GenericOp &op,
+                                          SparsityEngine &analysis);
+
+  /**
    * @brief Infers forward sparsity for ops that pass sparsity through unchanged
    * from their single operand to their result (e.g. abs, ceil, tanh).
    *

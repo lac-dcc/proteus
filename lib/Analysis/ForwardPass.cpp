@@ -688,15 +688,58 @@ void proteus::ForwardPass::visitOp(mlir::tensor::CollapseShapeOp &op,
 void proteus::ForwardPass::visitOp(mlir::linalg::GenericOp &op,
                                    SparsityEngine &analysis) {
 
-  auto *body = op.getBody();
-  auto &ops = body->getOperations();
-  auto it = ops.begin();
-
-  if (ops.size() == 3 && mlir::isa<mlir::arith::CmpFOp>(*it) &&
-      mlir::isa<mlir::arith::SelectOp>(*std::next(it))) {
-    visitPassthroughOp(*op.getOperation(), analysis);
+  if (mlir::succeeded(visitGenericReluOp(op, analysis))) {
     return;
   }
+
+  if (mlir::succeeded(visitGenericElementwiseZeroPreservingOp(op, analysis))) {
+    return;
+  }
+}
+
+mlir::LogicalResult
+proteus::ForwardPass::visitGenericReluOp(mlir::linalg::GenericOp &op,
+                                         SparsityEngine &analysis) {
+  auto *body = op.getBody();
+  auto &bodyOps = body->getOperations();
+  auto it = bodyOps.begin();
+
+  if (bodyOps.size() == 3 && mlir::isa<mlir::arith::CmpFOp>(*it) &&
+      mlir::isa<mlir::arith::SelectOp>(*std::next(it))) {
+    visitPassthroughOp(*op.getOperation(), analysis);
+    return mlir::success();
+  }
+
+  return mlir::failure();
+}
+
+mlir::LogicalResult
+proteus::ForwardPass::visitGenericElementwiseZeroPreservingOp(
+    mlir::linalg::GenericOp &op, SparsityEngine &analysis) {
+  auto *body = op.getBody();
+  auto &bodyOps = body->getOperations();
+
+  auto allParallel = llvm::all_of(
+      op.getIteratorTypesArray(), [](const mlir::utils::IteratorType t) {
+        return t == mlir::utils::IteratorType::parallel;
+      });
+
+  auto allZeroPreserving =
+      llvm::all_of(bodyOps, [](mlir::Operation &bodyOp) -> bool {
+        return mlir::isa<
+            mlir::linalg::YieldOp, mlir::arith::MulFOp, mlir::arith::MulIOp,
+            mlir::arith::NegFOp, mlir::arith::SIToFPOp, mlir::arith::UIToFPOp,
+            mlir::arith::FPToSIOp, mlir::arith::FPToUIOp, mlir::arith::TruncFOp,
+            mlir::arith::ExtFOp, mlir::arith::TruncIOp, mlir::arith::ExtSIOp,
+            mlir::arith::ExtUIOp>(&bodyOp);
+      });
+
+  if (!allParallel || !allZeroPreserving) {
+    return mlir::failure();
+  }
+
+  visitPassthroughOp(*op.getOperation(), analysis);
+  return mlir::success();
 }
 
 void proteus::ForwardPass::visitPassthroughOp(mlir::Operation &op,
