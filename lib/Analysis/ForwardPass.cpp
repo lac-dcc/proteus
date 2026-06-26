@@ -67,7 +67,7 @@ void proteus::ForwardPass::visit(mlir::Operation &op,
             mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
             mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
             mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp,
-            mlir::tensor::CollapseShapeOp>(
+            mlir::tensor::CollapseShapeOp, mlir::linalg::GenericOp>(
           [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
       .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
             mlir::linalg::NegFOp, mlir::linalg::DivOp,
@@ -682,6 +682,20 @@ void proteus::ForwardPass::visitOp(mlir::tensor::CollapseShapeOp &op,
     }
 
     (*res)[outDim] &= computed;
+  }
+}
+
+void proteus::ForwardPass::visitOp(mlir::linalg::GenericOp &op,
+                                   SparsityEngine &analysis) {
+
+  auto *body = op.getBody();
+  auto &ops = body->getOperations();
+  auto it = ops.begin();
+
+  if (ops.size() == 3 && mlir::isa<mlir::arith::CmpFOp>(*it) &&
+      mlir::isa<mlir::arith::SelectOp>(*std::next(it))) {
+    visitPassthroughOp(*op.getOperation(), analysis);
+    return;
   }
 }
 
