@@ -692,6 +692,10 @@ void proteus::ForwardPass::visitOp(mlir::linalg::GenericOp &op,
     return;
   }
 
+  if (mlir::succeeded(visitGenericAddFOp(op, analysis))) {
+    return;
+  }
+
   if (mlir::succeeded(visitGenericElementwiseZeroPreservingOp(op, analysis))) {
     return;
   }
@@ -714,6 +718,39 @@ proteus::ForwardPass::visitGenericReluOp(mlir::linalg::GenericOp &op,
 }
 
 mlir::LogicalResult
+proteus::ForwardPass::visitGenericAddFOp(mlir::linalg::GenericOp &op,
+                                         SparsityEngine &analysis) {
+  auto *body = op.getBody();
+  auto &bodyOps = body->getOperations();
+  auto it = bodyOps.begin();
+
+  if (bodyOps.size() != 2 || !mlir::isa<mlir::arith::AddFOp>(*it)) {
+    return mlir::failure();
+  }
+
+  auto allParallel = llvm::all_of(
+      op.getIteratorTypesArray(), [](const mlir::utils::IteratorType t) {
+        return t == mlir::utils::IteratorType::parallel;
+      });
+
+  if (!allParallel || op.getNumDpsInputs() != 2) {
+    return mlir::failure();
+  }
+
+  auto *lhs = analysis.getState(op.getOperand(0));
+  auto *rhs = analysis.getState(op.getOperand(1));
+  auto *res = analysis.getState(op.getResult(0));
+
+  for (std::size_t i = 0; i < res->rank(); i++) {
+    llvm::BitVector temp = (*lhs)[i];
+    temp |= (*rhs)[i];
+    (*res)[i] = temp;
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult
 proteus::ForwardPass::visitGenericElementwiseZeroPreservingOp(
     mlir::linalg::GenericOp &op, SparsityEngine &analysis) {
   auto *body = op.getBody();
@@ -728,6 +765,7 @@ proteus::ForwardPass::visitGenericElementwiseZeroPreservingOp(
       llvm::all_of(bodyOps, [](mlir::Operation &bodyOp) -> bool {
         return mlir::isa<
             mlir::linalg::YieldOp, mlir::arith::MulFOp, mlir::arith::MulIOp,
+            mlir::arith::DivFOp, mlir::arith::DivSIOp, mlir::arith::DivUIOp,
             mlir::arith::NegFOp, mlir::arith::SIToFPOp, mlir::arith::UIToFPOp,
             mlir::arith::FPToSIOp, mlir::arith::FPToUIOp, mlir::arith::TruncFOp,
             mlir::arith::ExtFOp, mlir::arith::TruncIOp, mlir::arith::ExtSIOp,

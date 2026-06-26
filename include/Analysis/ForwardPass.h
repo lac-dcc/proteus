@@ -233,6 +233,17 @@ private:
   static void visitOp(mlir::linalg::GenericOp &op, SparsityEngine &analysis);
 
   /**
+   * @brief Infers forward sparsity for a linalg.generic whose body is a
+   * two-input elementwise arith.addf.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static mlir::LogicalResult visitGenericAddFOp(mlir::linalg::GenericOp &op,
+                                                SparsityEngine &analysis);
+
+  /**
    * @brief Infers forward sparsity for the ReLU linalg.generic operation.
    *
    * @param op The op to analyse.
