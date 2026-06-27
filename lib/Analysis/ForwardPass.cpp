@@ -602,14 +602,17 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ExtractSliceOp &op,
   checkConst(sizes);
   checkConst(strides);
 
+  // A dimension is truly dropped (rank-reduced) only when the result rank is
+  // smaller than the source rank.  size==1 is necessary but not sufficient:
+  // e.g. extracting [1, 58, 28, 28] from [1, 116, 28, 28] keeps all four dims.
+  bool hasDimReduction = (res->rank() < offsets.size());
+
   uint64_t resDim = 0;
   for (uint64_t srcDim = 0; srcDim < offsets.size(); srcDim++) {
     auto size = mlir::getConstantIntValue(sizes[srcDim]);
 
-    // In case that the size is equal to 1, the source dimension is reduced and
-    // there exists no corresponding result dimension, which means we should
-    // skip
-    if (size.has_value() && size.value() == 1) {
+    // Skip only when this dimension is actually being dropped from the result.
+    if (hasDimReduction && size.has_value() && size.value() == 1) {
       continue;
     }
 
