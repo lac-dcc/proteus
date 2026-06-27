@@ -772,6 +772,10 @@ proteus::ForwardPass::visitGenericAddFOp(mlir::linalg::GenericOp &op,
   auto *rhs = analysis.getState(op.getOperand(1));
   auto *res = analysis.getState(op.getResult(0));
 
+  if (lhs->rank() != res->rank() || rhs->rank() != res->rank()) {
+    return mlir::failure();
+  }
+
   for (std::size_t i = 0; i < res->rank(); i++) {
     llvm::BitVector temp = (*lhs)[i];
     temp |= (*rhs)[i];
