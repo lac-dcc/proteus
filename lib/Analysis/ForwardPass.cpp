@@ -692,6 +692,10 @@ void proteus::ForwardPass::visitOp(mlir::linalg::GenericOp &op,
     return;
   }
 
+  if (mlir::succeeded(visitGenericClampOp(op, analysis))) {
+    return;
+  }
+
   if (mlir::succeeded(visitGenericAddFOp(op, analysis))) {
     return;
   }
@@ -715,6 +719,33 @@ proteus::ForwardPass::visitGenericReluOp(mlir::linalg::GenericOp &op,
   }
 
   return mlir::failure();
+}
+
+mlir::LogicalResult
+proteus::ForwardPass::visitGenericClampOp(mlir::linalg::GenericOp &op,
+                                          SparsityEngine &analysis) {
+  auto *body = op.getBody();
+  auto &bodyOps = body->getOperations();
+  auto it = bodyOps.begin();
+
+  auto allParallel = llvm::all_of(
+      op.getIteratorTypesArray(), [](const mlir::utils::IteratorType t) {
+        return t == mlir::utils::IteratorType::parallel;
+      });
+
+  if (!allParallel || op.getNumDpsInputs() != 3 || bodyOps.size() != 5) {
+    return mlir::failure();
+  }
+
+  if (!mlir::isa<mlir::arith::CmpFOp>(*it) ||
+      !mlir::isa<mlir::arith::SelectOp>(*std::next(it, 1)) ||
+      !mlir::isa<mlir::arith::CmpFOp>(*std::next(it, 2)) ||
+      !mlir::isa<mlir::arith::SelectOp>(*std::next(it, 3))) {
+    return mlir::failure();
+  }
+
+  visitPassthroughOp(*op.getOperation(), analysis);
+  return mlir::success();
 }
 
 mlir::LogicalResult

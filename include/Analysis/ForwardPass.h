@@ -254,6 +254,16 @@ private:
                                                 SparsityEngine &analysis);
 
   /**
+   * @brief Infers forward sparsity for the Clamp linalg.generic operation
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return success() if inference succeeded, failure() otherwise.
+   */
+  static mlir::LogicalResult visitGenericClampOp(mlir::linalg::GenericOp &op,
+                                                 SparsityEngine &analysis);
+
+  /**
    * @brief Infers forward sparsity for a linalg.generic operation that is
    * elementwise and all functions in body are zero preserving
    *
