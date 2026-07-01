@@ -47,6 +47,11 @@ struct SparsityPropagationAnalysis
       llvm::cl::desc("Debug utility for showcasing DenseMap Lattice state."),
       llvm::cl::init(false)};
 
+  Pass::Option<bool> printZeros{
+      *this, "print-zeros",
+      llvm::cl::desc("Print a per-value zero-count table after analysis."),
+      llvm::cl::init(false)};
+
   Pass::Option<std::string> passStage{
       *this, "pass-stage",
       llvm::cl::desc("Stop after this pass: seed, forward, lateral, backward."),

@@ -58,6 +58,10 @@ void SparsityPropagationAnalysis::runOnOperation() {
   if (stateDump) {
     printState(sa.getState());
   }
+
+  if (printZeros) {
+    proteus::ZeroCounter::print(sa.getState());
+  }
 }
 
 std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis() {

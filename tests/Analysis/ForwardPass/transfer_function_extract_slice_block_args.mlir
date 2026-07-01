@@ -62,3 +62,12 @@ func.func @extract_slice_rank_reduction(
   %0 = tensor.extract_slice %src[1, 0][1, 4][1, 1] : tensor<4x4xf32> to tensor<4xf32>
   return %0 : tensor<4xf32>
 }
+
+// CHECK-LABEL: func.func @extract_slice_no_rank_reduction_size1_dim
+func.func @extract_slice_no_rank_reduction_size1_dim(
+    %src : tensor<1x4x2x2xf32> {proteus.lattice = [{size = 1 : i64, words = array<i64: 1>}, {size = 4 : i64, words = array<i64: 15>}, {size = 2 : i64, words = array<i64: 3>}, {size = 2 : i64, words = array<i64: 3>}]}
+) -> tensor<1x3x2x2xf32> {
+  // CHECK: tensor.extract_slice {{.*}} {proteus.lattice = [{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 2 : i64, words = array<i64: 3>}, {size = 2 : i64, words = array<i64: 3>}]}
+  %0 = tensor.extract_slice %src[0, 0, 0, 0][1, 3, 2, 2][1, 1, 1, 1] : tensor<1x4x2x2xf32> to tensor<1x3x2x2xf32>
+  return %0 : tensor<1x3x2x2xf32>
+}

@@ -67,7 +67,7 @@ void proteus::ForwardPass::visit(mlir::Operation &op,
             mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
             mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
             mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp,
-            mlir::tensor::CollapseShapeOp>(
+            mlir::tensor::CollapseShapeOp, mlir::linalg::GenericOp>(
           [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
       .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
             mlir::linalg::NegFOp, mlir::linalg::DivOp,
@@ -602,14 +602,17 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ExtractSliceOp &op,
   checkConst(sizes);
   checkConst(strides);
 
+  // A dimension is truly dropped (rank-reduced) only when the result rank is
+  // smaller than the source rank.  size==1 is necessary but not sufficient:
+  // e.g. extracting [1, 58, 28, 28] from [1, 116, 28, 28] keeps all four dims.
+  bool hasDimReduction = (res->rank() < offsets.size());
+
   uint64_t resDim = 0;
   for (uint64_t srcDim = 0; srcDim < offsets.size(); srcDim++) {
     auto size = mlir::getConstantIntValue(sizes[srcDim]);
 
-    // In case that the size is equal to 1, the source dimension is reduced and
-    // there exists no corresponding result dimension, which means we should
-    // skip
-    if (size.has_value() && size.value() == 1) {
+    // Skip only when this dimension is actually being dropped from the result.
+    if (hasDimReduction && size.has_value() && size.value() == 1) {
       continue;
     }
 
@@ -683,6 +686,136 @@ void proteus::ForwardPass::visitOp(mlir::tensor::CollapseShapeOp &op,
 
     (*res)[outDim] &= computed;
   }
+}
+
+void proteus::ForwardPass::visitOp(mlir::linalg::GenericOp &op,
+                                   SparsityEngine &analysis) {
+
+  if (mlir::succeeded(visitGenericReluOp(op, analysis))) {
+    return;
+  }
+
+  if (mlir::succeeded(visitGenericClampOp(op, analysis))) {
+    return;
+  }
+
+  if (mlir::succeeded(visitGenericAddFOp(op, analysis))) {
+    return;
+  }
+
+  if (mlir::succeeded(visitGenericElementwiseZeroPreservingOp(op, analysis))) {
+    return;
+  }
+}
+
+mlir::LogicalResult
+proteus::ForwardPass::visitGenericReluOp(mlir::linalg::GenericOp &op,
+                                         SparsityEngine &analysis) {
+  auto *body = op.getBody();
+  auto &bodyOps = body->getOperations();
+  auto it = bodyOps.begin();
+
+  if (bodyOps.size() == 3 && mlir::isa<mlir::arith::CmpFOp>(*it) &&
+      mlir::isa<mlir::arith::SelectOp>(*std::next(it))) {
+    visitPassthroughOp(*op.getOperation(), analysis);
+    return mlir::success();
+  }
+
+  return mlir::failure();
+}
+
+mlir::LogicalResult
+proteus::ForwardPass::visitGenericClampOp(mlir::linalg::GenericOp &op,
+                                          SparsityEngine &analysis) {
+  auto *body = op.getBody();
+  auto &bodyOps = body->getOperations();
+  auto it = bodyOps.begin();
+
+  auto allParallel = llvm::all_of(
+      op.getIteratorTypesArray(), [](const mlir::utils::IteratorType t) {
+        return t == mlir::utils::IteratorType::parallel;
+      });
+
+  if (!allParallel || op.getNumDpsInputs() != 3 || bodyOps.size() != 5) {
+    return mlir::failure();
+  }
+
+  if (!mlir::isa<mlir::arith::CmpFOp>(*it) ||
+      !mlir::isa<mlir::arith::SelectOp>(*std::next(it, 1)) ||
+      !mlir::isa<mlir::arith::CmpFOp>(*std::next(it, 2)) ||
+      !mlir::isa<mlir::arith::SelectOp>(*std::next(it, 3))) {
+    return mlir::failure();
+  }
+
+  visitPassthroughOp(*op.getOperation(), analysis);
+  return mlir::success();
+}
+
+mlir::LogicalResult
+proteus::ForwardPass::visitGenericAddFOp(mlir::linalg::GenericOp &op,
+                                         SparsityEngine &analysis) {
+  auto *body = op.getBody();
+  auto &bodyOps = body->getOperations();
+  auto it = bodyOps.begin();
+
+  if (bodyOps.size() != 2 || !mlir::isa<mlir::arith::AddFOp>(*it)) {
+    return mlir::failure();
+  }
+
+  auto allParallel = llvm::all_of(
+      op.getIteratorTypesArray(), [](const mlir::utils::IteratorType t) {
+        return t == mlir::utils::IteratorType::parallel;
+      });
+
+  if (!allParallel || op.getNumDpsInputs() != 2) {
+    return mlir::failure();
+  }
+
+  auto *lhs = analysis.getState(op.getOperand(0));
+  auto *rhs = analysis.getState(op.getOperand(1));
+  auto *res = analysis.getState(op.getResult(0));
+
+  if (lhs->rank() != res->rank() || rhs->rank() != res->rank()) {
+    return mlir::failure();
+  }
+
+  for (std::size_t i = 0; i < res->rank(); i++) {
+    llvm::BitVector temp = (*lhs)[i];
+    temp |= (*rhs)[i];
+    (*res)[i] = temp;
+  }
+
+  return mlir::success();
+}
+
+mlir::LogicalResult
+proteus::ForwardPass::visitGenericElementwiseZeroPreservingOp(
+    mlir::linalg::GenericOp &op, SparsityEngine &analysis) {
+  auto *body = op.getBody();
+  auto &bodyOps = body->getOperations();
+
+  auto allParallel = llvm::all_of(
+      op.getIteratorTypesArray(), [](const mlir::utils::IteratorType t) {
+        return t == mlir::utils::IteratorType::parallel;
+      });
+
+  auto allZeroPreserving =
+      llvm::all_of(bodyOps, [](mlir::Operation &bodyOp) -> bool {
+        return mlir::isa<
+            mlir::linalg::YieldOp, mlir::arith::MulFOp, mlir::arith::MulIOp,
+            mlir::arith::DivFOp, mlir::arith::DivSIOp, mlir::arith::DivUIOp,
+            mlir::arith::NegFOp, mlir::arith::SIToFPOp, mlir::arith::UIToFPOp,
+            mlir::arith::FPToSIOp, mlir::arith::FPToUIOp, mlir::arith::TruncFOp,
+            mlir::arith::ExtFOp, mlir::arith::TruncIOp, mlir::arith::ExtSIOp,
+            mlir::arith::ExtUIOp>(&bodyOp);
+      });
+
+  if (!allParallel || !allZeroPreserving) {
+    return mlir::failure();
+  }
+
+  visitPassthroughOp(*op.getOperation(), analysis);
+  return mlir::success();
 }
 
 void proteus::ForwardPass::visitPassthroughOp(mlir::Operation &op,
