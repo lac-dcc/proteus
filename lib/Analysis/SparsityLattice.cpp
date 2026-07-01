@@ -61,6 +61,22 @@ SparsityLattice SparsityLattice::join(const SparsityLattice &a,
   return lattice;
 }
 
+SparsityLattice SparsityLattice::meet(const SparsityLattice &a,
+                                      const SparsityLattice &b) {
+  if (a.shape() != b.shape()) {
+    llvm::report_fatal_error("Shapes of lattices when meeting are different.");
+  }
+
+  SparsityLattice lattice(a.shape());
+
+  for (std::size_t i = 0; i < lattice.rank(); i++) {
+    lattice[i] = a[i];
+    lattice[i] &= b[i];
+  }
+
+  return lattice;
+}
+
 mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
                                         mlir::MLIRContext *ctx) {
   llvm::SmallVector<mlir::Attribute> bvAttrs;
