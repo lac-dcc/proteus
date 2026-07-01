@@ -127,3 +127,19 @@ void proteus::SeedPass::seedConstant(mlir::arith::ConstantOp op,
 
   analysis.getState().try_emplace(op.getResult(), lattice.value());
 }
+
+llvm::SetVector<mlir::Value>
+proteus::SeedPass::lateralWorklist(mlir::Block *block) {
+  llvm::SetVector<mlir::Value> worklist;
+
+  for (auto &op : block->getOperations()) {
+    if (mlir::isa<mlir::linalg::MatmulOp>(op) ||
+        mlir::isa<mlir::linalg::BatchMatmulOp>(op)) {
+      for (auto operand : op.getOperands()) {
+        worklist.insert(operand);
+      }
+    }
+  }
+
+  return worklist;
+}

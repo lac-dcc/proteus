@@ -1,5 +1,6 @@
 #include "Analysis/SparsityLattice.h"
 #include "mlir/Dialect/Arith/IR/Arith.h"
+#include "mlir/Dialect/Linalg/IR/Linalg.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Value.h"
 
@@ -34,6 +35,14 @@ struct SeedPass {
    */
   static void seedConstant(mlir::arith::ConstantOp op,
                            SparsityEngine &analysis);
+
+  /**
+   * @brief Seeds the lateral worklist for the worklist fixedpoint algorithm
+   *
+   * @param block The MLIR block to analyse.
+   * @return The lateral worklist in question
+   */
+  static llvm::SetVector<mlir::Value> lateralWorklist(mlir::Block *block);
 
 private:
   /**

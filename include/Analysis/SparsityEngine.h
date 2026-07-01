@@ -68,12 +68,8 @@ public:
    */
   template <typename PassType> void visit(mlir::Operation &op);
 
-  /**
-   * @brief Infers sparsity for a linalg.matmul operation.
-   *
-   * @param op The matmul op to analyse.
-   * @return success() if inference succeeded, failure() otherwise.
-   */
+  mlir::Value candidateVal;
+
 private:
   /**
    * @brief Dispatches a single analysis pass of type @p PassType.
