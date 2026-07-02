@@ -37,6 +37,14 @@ struct LateralPass {
   static std::optional<SparsityLattice> visit(mlir::Operation &op,
                                               SparsityEngine &analysis);
 
+  /**
+   * @brief Seeds the lateral worklist for the worklist fixedpoint algorithm
+   *
+   * @param block The MLIR block to analyse.
+   * @return The lateral worklist in question
+   */
+  static llvm::SetVector<mlir::Value> getWorklist(mlir::Block *block);
+
 private:
   /**
    * @brief Infers lateral sparsity for a linalg.matmul operation.

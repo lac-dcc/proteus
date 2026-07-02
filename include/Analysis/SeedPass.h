@@ -36,14 +36,6 @@ struct SeedPass {
   static void seedConstant(mlir::arith::ConstantOp op,
                            SparsityEngine &analysis);
 
-  /**
-   * @brief Seeds the lateral worklist for the worklist fixedpoint algorithm
-   *
-   * @param block The MLIR block to analyse.
-   * @return The lateral worklist in question
-   */
-  static llvm::SetVector<mlir::Value> lateralWorklist(mlir::Block *block);
-
 private:
   /**
    * @brief Seeds a splat constant: clears all dimension bits when the splat

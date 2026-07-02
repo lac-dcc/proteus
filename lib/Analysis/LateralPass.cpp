@@ -9,7 +9,7 @@
 #include "llvm/ADT/TypeSwitch.h"
 
 void proteus::LateralPass::run(mlir::Block *block, SparsityEngine &analysis) {
-  auto worklist = SeedPass::lateralWorklist(block);
+  auto worklist = getWorklist(block);
 
   while (!worklist.empty()) {
     analysis.setCandidateValue(worklist.pop_back_val());
@@ -91,4 +91,20 @@ proteus::LateralPass::visitOp(mlir::linalg::BatchMatmulOp &op,
   }
 
   return std::nullopt;
+}
+
+llvm::SetVector<mlir::Value>
+proteus::LateralPass::getWorklist(mlir::Block *block) {
+  llvm::SetVector<mlir::Value> worklist;
+
+  for (auto &op : block->getOperations()) {
+    if (mlir::isa<mlir::linalg::MatmulOp>(op) ||
+        mlir::isa<mlir::linalg::BatchMatmulOp>(op)) {
+      for (auto operand : op.getOperands()) {
+        worklist.insert(operand);
+      }
+    }
+  }
+
+  return worklist;
 }
