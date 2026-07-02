@@ -5,7 +5,6 @@
 #include "Analysis/SparsityLattice.h"
 
 #include "mlir/IR/Value.h"
-#include "llvm/ADT/SetVector.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 void proteus::LateralPass::run(mlir::Block *block, SparsityEngine &analysis) {
@@ -36,7 +35,7 @@ void proteus::LateralPass::run(mlir::Block *block, SparsityEngine &analysis) {
       for (mlir::Operation *user : analysis.getCandidateValue().getUsers()) {
         for (mlir::Value operand : user->getOperands()) {
           if (operand != analysis.getCandidateValue()) {
-            worklist.insert(operand);
+            worklist.push_back(operand);
           }
         }
       }
@@ -104,15 +103,15 @@ proteus::LateralPass::visitOp(mlir::linalg::BatchMatmulOp &op,
   return std::nullopt;
 }
 
-llvm::SetVector<mlir::Value>
+llvm::SmallVector<mlir::Value>
 proteus::LateralPass::getWorklist(mlir::Block *block) {
-  llvm::SetVector<mlir::Value> worklist;
+  llvm::SmallVector<mlir::Value> worklist;
 
   for (auto &op : block->getOperations()) {
     if (mlir::isa<mlir::linalg::MatmulOp>(op) ||
         mlir::isa<mlir::linalg::BatchMatmulOp>(op)) {
       for (auto operand : op.getOperands()) {
-        worklist.insert(operand);
+        worklist.push_back(operand);
       }
     }
   }

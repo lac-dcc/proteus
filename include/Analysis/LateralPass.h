@@ -43,7 +43,7 @@ struct LateralPass {
    * @param block The MLIR block to analyse.
    * @return The lateral worklist in question
    */
-  static llvm::SetVector<mlir::Value> getWorklist(mlir::Block *block);
+  static llvm::SmallVector<mlir::Value> getWorklist(mlir::Block *block);
 
 private:
   /**
