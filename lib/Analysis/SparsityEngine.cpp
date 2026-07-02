@@ -64,6 +64,14 @@ void proteus::SparsityEngine::visit(mlir::Operation &op) {
   PassType::visit(op, *this);
 }
 
+void proteus::SparsityEngine::setCandidateValue(const mlir::Value &value) {
+  candidateVal = value;
+}
+
+mlir::Value &proteus::SparsityEngine::getCandidateValue() {
+  return candidateVal;
+}
+
 template void
 proteus::SparsityEngine::visit<proteus::ForwardPass>(mlir::Operation &);
 template void

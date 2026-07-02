@@ -12,11 +12,12 @@ void proteus::LateralPass::run(mlir::Block *block, SparsityEngine &analysis) {
   auto worklist = SeedPass::lateralWorklist(block);
 
   while (!worklist.empty()) {
-    analysis.candidateVal = worklist.pop_back_val();
-    auto *current = analysis.getState(analysis.candidateVal);
+    analysis.setCandidateValue(worklist.pop_back_val());
+
+    auto *current = analysis.getState(analysis.getCandidateValue());
 
     std::optional<SparsityLattice> joined;
-    for (mlir::Operation *user : analysis.candidateVal.getUsers()) {
+    for (mlir::Operation *user : analysis.getCandidateValue().getUsers()) {
       auto candidate = visit(*user, analysis);
       joined = joined ? SparsityLattice::join(*joined, *candidate) : candidate;
     }
@@ -29,9 +30,9 @@ void proteus::LateralPass::run(mlir::Block *block, SparsityEngine &analysis) {
     if (merged != *current) {
       *current = merged;
 
-      for (mlir::Operation *user : analysis.candidateVal.getUsers()) {
+      for (mlir::Operation *user : analysis.getCandidateValue().getUsers()) {
         for (mlir::Value operand : user->getOperands()) {
-          if (operand != analysis.candidateVal) {
+          if (operand != analysis.getCandidateValue()) {
             worklist.insert(operand);
           }
         }
@@ -56,17 +57,18 @@ proteus::LateralPass::visitOp(mlir::linalg::MatmulOp &op,
   auto *lhs = analysis.getState(op.getOperand(0));
   auto *rhs = analysis.getState(op.getOperand(1));
 
-  if (analysis.candidateVal == op.getOperand(0)) {
+  if (analysis.getCandidateValue() == op.getOperand(0)) {
     SparsityLattice candidate = *lhs;
     candidate[1] &= (*rhs)[0];
     return candidate;
   }
 
-  if (analysis.candidateVal == op.getOperand(1)) {
+  if (analysis.getCandidateValue() == op.getOperand(1)) {
     SparsityLattice candidate = *rhs;
     candidate[0] &= (*lhs)[1];
     return candidate;
   }
+
   return std::nullopt;
 }
 
@@ -76,15 +78,17 @@ proteus::LateralPass::visitOp(mlir::linalg::BatchMatmulOp &op,
   auto *rhs = analysis.getState(op.getOperand(1));
   auto *lhs = analysis.getState(op.getOperand(0));
 
-  if (analysis.candidateVal == op.getOperand(0)) {
+  if (analysis.getCandidateValue() == op.getOperand(0)) {
     SparsityLattice candidate = *lhs;
     candidate[2] &= (*rhs)[1];
     return candidate;
   }
-  if (analysis.candidateVal == op.getOperand(1)) {
+
+  if (analysis.getCandidateValue() == op.getOperand(1)) {
     SparsityLattice candidate = *rhs;
     candidate[1] &= (*lhs)[2];
     return candidate;
   }
+
   return std::nullopt;
 }

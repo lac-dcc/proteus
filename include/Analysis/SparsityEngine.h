@@ -68,7 +68,20 @@ public:
    */
   template <typename PassType> void visit(mlir::Operation &op);
 
-  mlir::Value candidateVal;
+  /*
+   * @brief Setter for the candidate value of the internal state of the analysis
+   * for the fixpoint algorithm
+   *
+   * @param value The value to set in the internal state
+   */
+  void setCandidateValue(const mlir::Value &value);
+
+  /*
+   * @brief Getter for the candidate value of the internal state of the analysis
+   *
+   * @return mlir::Value& The internal state's candidate value
+   */
+  mlir::Value &getCandidateValue();
 
 private:
   /**
@@ -81,5 +94,6 @@ private:
   template <typename PassType> void run(mlir::Block *block);
 
   LatticeMap state;
+  mlir::Value candidateVal;
 };
 } // namespace proteus
