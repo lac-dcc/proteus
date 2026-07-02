@@ -68,12 +68,21 @@ public:
    */
   template <typename PassType> void visit(mlir::Operation &op);
 
-  /**
-   * @brief Infers sparsity for a linalg.matmul operation.
+  /*
+   * @brief Setter for the candidate value of the internal state of the analysis
+   * for the fixpoint algorithm
    *
-   * @param op The matmul op to analyse.
-   * @return success() if inference succeeded, failure() otherwise.
+   * @param value The value to set in the internal state
    */
+  void setCandidateValue(const mlir::Value &value);
+
+  /*
+   * @brief Getter for the candidate value of the internal state of the analysis
+   *
+   * @return mlir::Value& The internal state's candidate value
+   */
+  mlir::Value &getCandidateValue();
+
 private:
   /**
    * @brief Dispatches a single analysis pass of type @p PassType.
@@ -85,5 +94,6 @@ private:
   template <typename PassType> void run(mlir::Block *block);
 
   LatticeMap state;
+  mlir::Value candidateVal;
 };
 } // namespace proteus

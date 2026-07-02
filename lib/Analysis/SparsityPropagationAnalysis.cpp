@@ -55,6 +55,17 @@ void SparsityPropagationAnalysis::runOnOperation() {
     }
   });
 
+  if (latticeDump) {
+    for (auto arg : getOperation().getArguments()) {
+      auto *lattice = sa.getState(arg);
+      if (lattice != nullptr) {
+        getOperation().setArgAttr(
+            arg.getArgNumber(), "proteus.lattice",
+            SparsityLattice::toAttr(*lattice, getOperation().getContext()));
+      }
+    }
+  }
+
   if (stateDump) {
     printState(sa.getState());
   }

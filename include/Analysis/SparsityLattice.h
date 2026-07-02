@@ -89,9 +89,7 @@ public:
   /**
    * @brief Computes the least-upper-bound (join) of two lattices.
    *
-   * A bit is set in the result only if it is set in both @p a and @p b.
-   * This is a conservative intersection: a slice is only guaranteed sparse
-   * if all analysis paths agree it is sparse.
+   * A bit is set (dense) in the result if it is set in either @p a or @p b.
    *
    * @param a First lattice operand.
    * @param b Second lattice operand.
@@ -99,6 +97,20 @@ public:
    * @return A new lattice representing the least-upper-bound.
    */
   static SparsityLattice join(const SparsityLattice &a,
+                              const SparsityLattice &b);
+
+  /**
+   * @brief Computes the greatest-lower-bound (meet) of two lattices.
+   *
+   * A bit is set (dense) in the result only if it is set in both @p a and
+   * @p b; it is cleared (sparse) if either operand is sparse.   *
+   *
+   * @param a First lattice operand.
+   * @param b Second lattice operand.
+   * @pre a.shape() == b.shape()
+   * @return A new lattice representing the greatest-lower-bound.
+   */
+  static SparsityLattice meet(const SparsityLattice &a,
                               const SparsityLattice &b);
 
   /**

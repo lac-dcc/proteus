@@ -118,6 +118,50 @@ TEST(SparsityLattice, JoinIsIdempotent) {
   EXPECT_EQ(result, a);
 }
 
+TEST(SparsityLattice, MeetOfTwoDenseLatticesIsDense) {
+  proteus::SparsityLattice a({4, 8});
+  proteus::SparsityLattice b({4, 8});
+  auto result = proteus::SparsityLattice::meet(a, b);
+  EXPECT_TRUE(result[0].all());
+  EXPECT_TRUE(result[1].all());
+}
+
+TEST(SparsityLattice, MeetKeepsSparseBitAgreedByBothOperands) {
+  proteus::SparsityLattice a({4, 8});
+  proteus::SparsityLattice b({4, 8});
+  a[0].reset(1);
+  b[0].reset(1);
+  auto result = proteus::SparsityLattice::meet(a, b);
+  EXPECT_FALSE(result[0][1]);
+}
+
+TEST(SparsityLattice, MeetPreservesSparseBitFromEitherOperand) {
+  proteus::SparsityLattice a({4, 8});
+  proteus::SparsityLattice b({4, 8});
+  a[0].reset(2);
+  auto result = proteus::SparsityLattice::meet(a, b);
+  EXPECT_FALSE(result[0][2]);
+  EXPECT_EQ(result, a);
+}
+
+TEST(SparsityLattice, MeetIsCommutative) {
+  proteus::SparsityLattice a({4, 8});
+  proteus::SparsityLattice b({4, 8});
+  a[0].reset(0);
+  b[1].reset(3);
+  auto ab = proteus::SparsityLattice::meet(a, b);
+  auto ba = proteus::SparsityLattice::meet(b, a);
+  EXPECT_EQ(ab, ba);
+}
+
+TEST(SparsityLattice, MeetIsIdempotent) {
+  proteus::SparsityLattice a({4, 8});
+  a[0].reset(1);
+  a[1].reset(5);
+  auto result = proteus::SparsityLattice::meet(a, a);
+  EXPECT_EQ(result, a);
+}
+
 TEST(SparsityLattice, FromAttrReturnsNulloptWhenKeyMissing) {
   mlir::MLIRContext ctx;
   auto emptyDict = mlir::DictionaryAttr::get(&ctx, {});
@@ -151,7 +195,7 @@ TEST(SparsityLattice, FromAttrRoundTripWithSparseBits) {
 
 TEST(SparsityLattice, FromAttrRoundTripAcrossWordBoundary) {
   mlir::MLIRContext ctx;
-  llvm::SmallVector<uint64_t> shape{80u};
+  llvm::SmallVector<uint64_t> shape{80U};
   proteus::SparsityLattice original(shape);
   original[0].reset(63);
   original[0].reset(64);
