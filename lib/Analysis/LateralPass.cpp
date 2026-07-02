@@ -50,7 +50,14 @@ proteus::LateralPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
              &op)
       .Case<mlir::linalg::MatmulOp, mlir::linalg::BatchMatmulOp>(
           [&](auto typedOp) { return visitOp(typedOp, analysis); })
-      .Default([](auto) { return std::nullopt; });
+      .Default(
+          [&](mlir::Operation *defaultOp) -> std::optional<SparsityLattice> {
+            if (defaultOp->getNumResults() == 0) {
+              return std::nullopt;
+            }
+
+            return *analysis.getState(analysis.getCandidateValue());
+          });
 }
 
 std::optional<proteus::SparsityLattice>
@@ -85,8 +92,8 @@ proteus::LateralPass::visitOp(mlir::linalg::BatchMatmulOp &op,
     return std::nullopt;
   }
 
-  auto *rhs = analysis.getState(op.getOperand(1));
   auto *lhs = analysis.getState(op.getOperand(0));
+  auto *rhs = analysis.getState(op.getOperand(1));
 
   if (analysis.getCandidateValue() == op.getOperand(0)) {
     SparsityLattice candidate = *lhs;
