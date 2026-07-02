@@ -19,6 +19,9 @@ void proteus::LateralPass::run(mlir::Block *block, SparsityEngine &analysis) {
     std::optional<SparsityLattice> joined;
     for (mlir::Operation *user : analysis.getCandidateValue().getUsers()) {
       auto candidate = visit(*user, analysis);
+      if (!candidate) {
+        continue;
+      }
       joined = joined ? SparsityLattice::join(*joined, *candidate) : candidate;
     }
 
@@ -54,6 +57,10 @@ proteus::LateralPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
 std::optional<proteus::SparsityLattice>
 proteus::LateralPass::visitOp(mlir::linalg::MatmulOp &op,
                               SparsityEngine &analysis) {
+  if (op.getOperand(0) == op.getOperand(1)) {
+    return std::nullopt;
+  }
+
   auto *lhs = analysis.getState(op.getOperand(0));
   auto *rhs = analysis.getState(op.getOperand(1));
 
@@ -75,6 +82,10 @@ proteus::LateralPass::visitOp(mlir::linalg::MatmulOp &op,
 std::optional<proteus::SparsityLattice>
 proteus::LateralPass::visitOp(mlir::linalg::BatchMatmulOp &op,
                               SparsityEngine &analysis) {
+  if (op.getOperand(0) == op.getOperand(1)) {
+    return std::nullopt;
+  }
+
   auto *rhs = analysis.getState(op.getOperand(1));
   auto *lhs = analysis.getState(op.getOperand(0));
 
