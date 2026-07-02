@@ -71,5 +71,18 @@ private:
    */
   static std::optional<SparsityLattice> visitOp(mlir::linalg::BatchMatmulOp &op,
                                                 SparsityEngine &analysis);
+
+  /**
+   * @brief Infers lateral sparsity for a linalg.matvec operation.
+   *
+   * Proposes a new candidate lattice for whichever of lhs/rhs `value` is.
+   *
+   * @param op The op to analyse.
+   * @param analysis The SPA analysis object.
+   * @return The candidate lattice for `value`, or std::nullopt if `value` is
+   * not the lhs or rhs operand.
+   */
+  static std::optional<SparsityLattice> visitOp(mlir::linalg::MatvecOp &op,
+                                                SparsityEngine &analysis);
 };
 } // namespace proteus
