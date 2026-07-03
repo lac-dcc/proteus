@@ -85,7 +85,18 @@ proteus::BackwardPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::MatmulOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  auto *res = analysis.getState(op.getResult(0));
+  SparsityLattice candidate = *analysis.getState(analysis.getCandidateValue());
+
+  if (analysis.getCandidateValue() == op.getOperand(0)) {
+    candidate[0] &= (*res)[0];
+  }
+  if (analysis.getCandidateValue() == op.getOperand(1)) {
+    candidate[1] &= (*res)[1];
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
@@ -212,7 +223,7 @@ proteus::BackwardPass::visitPassthroughOp(mlir::Operation &op,
   SparsityLattice candidate = *src;
 
   for (std::size_t i = 0; i < res->rank(); i++) {
-    candidate[i] = (*res)[i];
+    candidate[i] &= (*res)[i];
   }
 
   return candidate;
