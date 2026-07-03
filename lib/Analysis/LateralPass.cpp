@@ -48,9 +48,16 @@ proteus::LateralPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
   // Based on the mlir operation we dispatch the appropriate transfer function
   return mlir::TypeSwitch<mlir::Operation *, std::optional<SparsityLattice>>(
              &op)
-      .Case<mlir::linalg::MatmulOp, mlir::linalg::BatchMatmulOp>(
+      .Case<mlir::linalg::MatmulOp, mlir::linalg::BatchMatmulOp,
+            mlir::linalg::MatvecOp, mlir::linalg::VecmatOp>(
           [&](auto typedOp) { return visitOp(typedOp, analysis); })
-      .Default([](auto) { return std::nullopt; });
+      .Default(
+          [&](mlir::Operation *defaultOp) -> std::optional<SparsityLattice> {
+            if (defaultOp->getNumResults() == 0) {
+              return std::nullopt;
+            }
+            return *analysis.getState(analysis.getCandidateValue());
+          });
 }
 
 std::optional<proteus::SparsityLattice>
@@ -85,8 +92,8 @@ proteus::LateralPass::visitOp(mlir::linalg::BatchMatmulOp &op,
     return std::nullopt;
   }
 
-  auto *rhs = analysis.getState(op.getOperand(1));
   auto *lhs = analysis.getState(op.getOperand(0));
+  auto *rhs = analysis.getState(op.getOperand(1));
 
   if (analysis.getCandidateValue() == op.getOperand(0)) {
     SparsityLattice candidate = *lhs;
@@ -103,13 +110,58 @@ proteus::LateralPass::visitOp(mlir::linalg::BatchMatmulOp &op,
   return std::nullopt;
 }
 
+std::optional<proteus::SparsityLattice>
+proteus::LateralPass::visitOp(mlir::linalg::MatvecOp &op,
+                              SparsityEngine &analysis) {
+
+  auto *lhs = analysis.getState(op.getOperand(0));
+  auto *rhs = analysis.getState(op.getOperand(1));
+
+  if (analysis.getCandidateValue() == op.getOperand(0)) {
+    SparsityLattice candidate = *lhs;
+    candidate[1] &= (*rhs)[0];
+    return candidate;
+  }
+
+  if (analysis.getCandidateValue() == op.getOperand(1)) {
+    SparsityLattice candidate = *rhs;
+    candidate[0] &= (*lhs)[1];
+    return candidate;
+  }
+
+  return std::nullopt;
+}
+
+std::optional<proteus::SparsityLattice>
+proteus::LateralPass::visitOp(mlir::linalg::VecmatOp &op,
+                              SparsityEngine &analysis) {
+  auto *lhs = analysis.getState(op.getOperand(0));
+  auto *rhs = analysis.getState(op.getOperand(1));
+
+  if (analysis.getCandidateValue() == op.getOperand(0)) {
+    SparsityLattice candidate = *lhs;
+    candidate[0] &= (*rhs)[0];
+    return candidate;
+  }
+
+  if (analysis.getCandidateValue() == op.getOperand(1)) {
+    SparsityLattice candidate = *rhs;
+    candidate[0] &= (*lhs)[0];
+    return candidate;
+  }
+
+  return std::nullopt;
+}
+
 llvm::SmallVector<mlir::Value>
 proteus::LateralPass::getWorklist(mlir::Block *block) {
   llvm::SmallVector<mlir::Value> worklist;
 
   for (auto &op : block->getOperations()) {
     if (mlir::isa<mlir::linalg::MatmulOp>(op) ||
-        mlir::isa<mlir::linalg::BatchMatmulOp>(op)) {
+        mlir::isa<mlir::linalg::BatchMatmulOp>(op) ||
+        mlir::isa<mlir::linalg::MatvecOp>(op) ||
+        mlir::isa<mlir::linalg::VecmatOp>(op)) {
       for (auto operand : op.getOperands()) {
         worklist.push_back(operand);
       }
