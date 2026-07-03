@@ -54,14 +54,13 @@ proteus::BackwardPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
                           std::optional<proteus::SparsityLattice>>(&op)
       .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp, mlir::linalg::MatvecOp,
             mlir::linalg::VecmatOp, mlir::linalg::TransposeOp,
-            mlir::linalg::BatchMatmulOp, mlir::linalg::FillOp,
-            mlir::linalg::BroadcastOp, mlir::linalg::Conv2DOp,
-            mlir::linalg::Conv2DNchwFchwOp, mlir::linalg::Conv2DNhwcHwcfOp,
-            mlir::linalg::PoolingNchwMaxOp, mlir::linalg::PoolingNchwSumOp,
+            mlir::linalg::BatchMatmulOp, mlir::linalg::BroadcastOp,
+            mlir::linalg::Conv2DOp, mlir::linalg::Conv2DNchwFchwOp,
+            mlir::linalg::Conv2DNhwcHwcfOp, mlir::linalg::PoolingNchwMaxOp,
+            mlir::linalg::PoolingNchwSumOp,
             mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
-            mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
-            mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp,
-            mlir::tensor::CollapseShapeOp>(
+            mlir::tensor::ConcatOp, mlir::tensor::ExpandShapeOp,
+            mlir::tensor::ExtractSliceOp, mlir::tensor::CollapseShapeOp>(
           [&](auto typedOp) -> std::optional<proteus::SparsityLattice> {
             return visitOp(typedOp, analysis);
           })
@@ -130,12 +129,6 @@ proteus::BackwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
 }
 
 std::optional<proteus::SparsityLattice>
-proteus::BackwardPass::visitOp(mlir::linalg::FillOp &op,
-                               SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
-}
-
-std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::BroadcastOp &op,
                                SparsityEngine &analysis) {
   return *analysis.getState(analysis.getCandidateValue());
@@ -149,12 +142,6 @@ proteus::BackwardPass::visitOp(mlir::tensor::PadOp &op,
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::tensor::ConcatOp &op,
-                               SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
-}
-
-std::optional<proteus::SparsityLattice>
-proteus::BackwardPass::visitOp(mlir::tensor::EmptyOp &op,
                                SparsityEngine &analysis) {
   return *analysis.getState(analysis.getCandidateValue());
 }
