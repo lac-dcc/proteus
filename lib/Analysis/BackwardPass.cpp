@@ -34,7 +34,9 @@ void proteus::BackwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
 
       for (mlir::Operation *user : analysis.getCandidateValue().getUsers()) {
         for (mlir::Value operand : user->getOperands()) {
-          worklist.push_back(operand);
+          if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
+            worklist.push_back(operand);
+          }
         }
       }
     }
@@ -212,7 +214,9 @@ proteus::BackwardPass::getWorklist(mlir::Block *block) {
 
   for (auto &op : block->getOperations()) {
     for (auto operand : op.getOperands()) {
-      worklist.push_back(operand);
+      if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
+        worklist.push_back(operand);
+      }
     }
   }
 
