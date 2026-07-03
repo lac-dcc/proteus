@@ -69,7 +69,7 @@ proteus::BackwardPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
             mlir::linalg::NegFOp, mlir::linalg::DivOp,
             mlir::linalg::DivUnsignedOp, mlir::linalg::CopyOp,
             mlir::linalg::TanhOp, mlir::linalg::SquareOp, mlir::linalg::SqrtOp>(
-          [&](auto) -> std::optional<SparsityLattice> {
+          [&](auto) -> SparsityLattice {
             return visitPassthroughOp(op, analysis);
           })
       .Default(
@@ -202,10 +202,20 @@ proteus::BackwardPass::visitOp(mlir::tensor::CollapseShapeOp &op,
   return *analysis.getState(analysis.getCandidateValue());
 }
 
-std::optional<proteus::SparsityLattice>
+proteus::SparsityLattice
 proteus::BackwardPass::visitPassthroughOp(mlir::Operation &op,
                                           SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  auto *src = analysis.getState(op.getOperand(0));
+  auto *res = analysis.getState(op.getResult(0));
+
+  SparsityLattice candidate = *src;
+
+  for (std::size_t i = 0; i < res->rank(); i++) {
+    candidate[i] = (*res)[i];
+  }
+
+  return candidate;
 }
 
 llvm::SmallVector<mlir::Value>

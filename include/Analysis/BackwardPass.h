@@ -282,8 +282,8 @@ private:
    * @return The candidate lattice for `value`, or std::nullopt if `value` is
    * not the lhs or rhs operand.
    */
-  static std::optional<SparsityLattice>
-  visitPassthroughOp(mlir::Operation &op, SparsityEngine &analysis);
+  static SparsityLattice visitPassthroughOp(mlir::Operation &op,
+                                            SparsityEngine &analysis);
 };
 
 } // namespace proteus
