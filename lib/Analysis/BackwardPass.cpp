@@ -83,127 +83,127 @@ proteus::BackwardPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::MatmulOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::AddOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::MatvecOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::VecmatOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::TransposeOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::FillOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::BroadcastOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::tensor::PadOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::tensor::ConcatOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::tensor::EmptyOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::Conv2DOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::PoolingNchwMaxOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::PoolingNchwSumOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::tensor::ExpandShapeOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::tensor::ExtractSliceOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::tensor::CollapseShapeOp &op,
                                SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitPassthroughOp(mlir::Operation &op,
                                           SparsityEngine &analysis) {
-  return std::nullopt;
+  return *analysis.getState(analysis.getCandidateValue());
 }
 
 llvm::SmallVector<mlir::Value>
