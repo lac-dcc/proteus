@@ -5,6 +5,7 @@
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Value.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 void proteus::BackwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
@@ -32,13 +33,16 @@ void proteus::BackwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
     if (merged != *current) {
       *current = merged;
 
-      for (mlir::Operation *user : analysis.getCandidateValue().getUsers()) {
-        for (mlir::Value operand : user->getOperands()) {
-          if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
-            worklist.push_back(operand);
-          }
-        }
-      }
+      // TODO: We probably don't need this because changes in operands are
+      // completely independent in the backward pass and also there is no loops
+      // or if statements currenlty in the IR that we are working with for
+      // (mlir::Operation *user : analysis.getCandidateValue().getUsers()) {
+      //   for (mlir::Value operand : user->getOperands()) {
+      //     if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
+      //       worklist.push_back(operand);
+      //     }
+      //   }
+      // }
     }
   }
 }
@@ -54,14 +58,13 @@ proteus::BackwardPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
                           std::optional<proteus::SparsityLattice>>(&op)
       .Case<mlir::linalg::MatmulOp, mlir::linalg::AddOp, mlir::linalg::MatvecOp,
             mlir::linalg::VecmatOp, mlir::linalg::TransposeOp,
-            mlir::linalg::BatchMatmulOp, mlir::linalg::FillOp,
-            mlir::linalg::BroadcastOp, mlir::linalg::Conv2DOp,
-            mlir::linalg::Conv2DNchwFchwOp, mlir::linalg::Conv2DNhwcHwcfOp,
-            mlir::linalg::PoolingNchwMaxOp, mlir::linalg::PoolingNchwSumOp,
+            mlir::linalg::BatchMatmulOp, mlir::linalg::BroadcastOp,
+            mlir::linalg::Conv2DOp, mlir::linalg::Conv2DNchwFchwOp,
+            mlir::linalg::Conv2DNhwcHwcfOp, mlir::linalg::PoolingNchwMaxOp,
+            mlir::linalg::PoolingNchwSumOp,
             mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
-            mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
-            mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp,
-            mlir::tensor::CollapseShapeOp>(
+            mlir::tensor::ConcatOp, mlir::tensor::ExpandShapeOp,
+            mlir::tensor::ExtractSliceOp, mlir::tensor::CollapseShapeOp>(
           [&](auto typedOp) -> std::optional<proteus::SparsityLattice> {
             return visitOp(typedOp, analysis);
           })
@@ -69,7 +72,7 @@ proteus::BackwardPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
             mlir::linalg::NegFOp, mlir::linalg::DivOp,
             mlir::linalg::DivUnsignedOp, mlir::linalg::CopyOp,
             mlir::linalg::TanhOp, mlir::linalg::SquareOp, mlir::linalg::SqrtOp>(
-          [&](auto) -> std::optional<SparsityLattice> {
+          [&](auto) -> SparsityLattice {
             return visitPassthroughOp(op, analysis);
           })
       .Default(
@@ -85,49 +88,112 @@ proteus::BackwardPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::MatmulOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  if (analysis.getCandidateValue() == op.getOperand(0)) {
+    candidate[0] &= (*res)[0];
+  }
+  if (analysis.getCandidateValue() == op.getOperand(1)) {
+    candidate[1] &= (*res)[1];
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::AddOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  for (std::size_t i = 0; i < candidate.rank(); i++) {
+    candidate[i] &= (*res)[i];
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::MatvecOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  if (analysis.getCandidateValue() != op.getOperand(0)) {
+    return std::nullopt;
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+  candidate[0] &= (*res)[0];
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::VecmatOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  if (analysis.getCandidateValue() != op.getOperand(1)) {
+    return std::nullopt;
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+  candidate[1] &= (*res)[0];
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::TransposeOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  auto *res = analysis.getState(op->getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  llvm::ArrayRef<int64_t> perm = op.getPermutation();
+  for (std::size_t i = 0; i < candidate.rank(); i++) {
+    candidate[perm[i]] &= (*res)[i];
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
-}
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
 
-std::optional<proteus::SparsityLattice>
-proteus::BackwardPass::visitOp(mlir::linalg::FillOp &op,
-                               SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+  if (analysis.getCandidateValue() == op.getOperand(0)) {
+    candidate[1] &= (*res)[1];
+  }
+  if (analysis.getCandidateValue() == op.getOperand(1)) {
+    candidate[2] &= (*res)[2];
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::BroadcastOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  auto *res = analysis.getState(op->getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  auto broadcastDims = op.getDimensions();
+  std::size_t inputDim = 0;
+  for (std::size_t i = 0; i < res->rank(); ++i) {
+    if (llvm::is_contained(broadcastDims, i)) {
+      continue;
+    }
+    candidate[inputDim++] &= (*res)[i];
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
@@ -138,12 +204,6 @@ proteus::BackwardPass::visitOp(mlir::tensor::PadOp &op,
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::tensor::ConcatOp &op,
-                               SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
-}
-
-std::optional<proteus::SparsityLattice>
-proteus::BackwardPass::visitOp(mlir::tensor::EmptyOp &op,
                                SparsityEngine &analysis) {
   return *analysis.getState(analysis.getCandidateValue());
 }
@@ -202,10 +262,20 @@ proteus::BackwardPass::visitOp(mlir::tensor::CollapseShapeOp &op,
   return *analysis.getState(analysis.getCandidateValue());
 }
 
-std::optional<proteus::SparsityLattice>
+proteus::SparsityLattice
 proteus::BackwardPass::visitPassthroughOp(mlir::Operation &op,
                                           SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  auto *src = analysis.getState(op.getOperand(0));
+  auto *res = analysis.getState(op.getResult(0));
+
+  SparsityLattice candidate = *src;
+
+  for (std::size_t i = 0; i < res->rank(); i++) {
+    candidate[i] &= (*res)[i];
+  }
+
+  return candidate;
 }
 
 llvm::SmallVector<mlir::Value>
@@ -213,9 +283,11 @@ proteus::BackwardPass::getWorklist(mlir::Block *block) {
   llvm::SmallVector<mlir::Value> worklist;
 
   for (auto &op : block->getOperations()) {
-    for (auto operand : op.getOperands()) {
-      if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
-        worklist.push_back(operand);
+    if (auto dpsOp = mlir::dyn_cast<mlir::DestinationStyleOpInterface>(op)) {
+      for (auto operand : dpsOp.getDpsInputs()) {
+        if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
+          worklist.push_back(operand);
+        }
       }
     }
   }

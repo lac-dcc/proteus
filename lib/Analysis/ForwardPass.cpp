@@ -65,9 +65,9 @@ void proteus::ForwardPass::visit(mlir::Operation &op,
             mlir::linalg::Conv2DNchwFchwOp, mlir::linalg::Conv2DNhwcHwcfOp,
             mlir::linalg::PoolingNchwMaxOp, mlir::linalg::PoolingNchwSumOp,
             mlir::linalg::DepthwiseConv2DNchwChwOp, mlir::tensor::PadOp,
-            mlir::tensor::ConcatOp, mlir::tensor::EmptyOp,
-            mlir::tensor::ExpandShapeOp, mlir::tensor::ExtractSliceOp,
-            mlir::tensor::CollapseShapeOp, mlir::linalg::GenericOp>(
+            mlir::tensor::ConcatOp, mlir::tensor::ExpandShapeOp,
+            mlir::tensor::ExtractSliceOp, mlir::tensor::CollapseShapeOp,
+            mlir::linalg::GenericOp>(
           [&](auto typedOp) -> void { visitOp(typedOp, analysis); })
       .Case<mlir::linalg::AbsOp, mlir::linalg::CeilOp, mlir::linalg::FloorOp,
             mlir::linalg::NegFOp, mlir::linalg::DivOp,
@@ -101,7 +101,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::AddOp &op,
     llvm::BitVector temp = (*lhs)[i];
     temp |= (*rhs)[i];
     // Again we need to respect any preexisting lattices
-    (*res)[i] = temp;
+    (*res)[i] &= temp;
   }
 }
 
@@ -114,7 +114,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp &op,
   if ((*rhs)[0].none()) {
     (*res)[0].reset();
   } else {
-    (*res)[0] = (*lhs)[0];
+    (*res)[0] &= (*lhs)[0];
   }
 }
 
@@ -127,7 +127,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp &op,
   if ((*lhs)[0].none()) {
     (*res)[0].reset();
   } else {
-    (*res)[0] = (*rhs)[1];
+    (*res)[0] &= (*rhs)[1];
   }
 }
 
@@ -138,7 +138,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::TransposeOp &op,
 
   llvm::ArrayRef<int64_t> perm = op.getPermutation();
   for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*input)[perm[i]];
+    (*res)[i] &= (*input)[perm[i]];
   }
 }
 
@@ -206,8 +206,9 @@ void proteus::ForwardPass::visitOp(mlir::linalg::BroadcastOp &op,
     }
 
     // If we do get to a dimension that existed previously in the input tensor
-    // we propagate the sparsity to the current rank's bitvector
-    (*res)[i] = (*input)[inputDim++];
+    // we propagate the sparsity to the current rank's bitvector, respecting
+    // any preexisting lattice (e.g. an attribute set on the result).
+    (*res)[i] &= (*input)[inputDim++];
   }
 }
 
@@ -257,8 +258,12 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
 
   auto concatDim = op.getDim();
 
-  for (std::size_t i = 0; i < res->rank(); ++i) {
-    (*res)[i].reset();
+  // Accumulate into a scratch lattice first, then meet it into res at the
+  // end so that any preexisting lattice (e.g. an attribute set on the
+  // result) is respected instead of being clobbered.
+  SparsityLattice computed(res->shape());
+  for (std::size_t i = 0; i < computed.rank(); ++i) {
+    computed[i].reset();
   }
 
   // This offset is needed for the result to be able to concatenate across all
@@ -273,12 +278,12 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
     // For each dimension that is not the dimension we are concatenating on
     // we will use the OR operator to ensure that sparsity is propagated when
     // all tensors are sparse on that dimension
-    for (std::size_t j = 0; j < res->rank(); j++) {
+    for (std::size_t j = 0; j < computed.rank(); j++) {
       if (j == concatDim) {
         // In the case of the concatenation dimension, we just concatenate
         // the bits of that dimension for all tensor operands
         for (std::size_t k = 0; k < (*operand)[j].size(); k++) {
-          (*res)[j][k + offset] = (*operand)[j][k];
+          computed[j][k + offset] = (*operand)[j][k];
         }
 
         offset += (*operand)[j].size();
@@ -286,14 +291,15 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
         // For each operand we use the OR operation to make sure that only
         // in the case of all tensors being sparse on that dimension, the
         // sparsity is propagated
-        (*res)[j] |= (*operand)[j];
+        computed[j] |= (*operand)[j];
       }
     }
   }
-}
 
-void proteus::ForwardPass::visitOp(mlir::tensor::EmptyOp &op,
-                                   SparsityEngine &analysis) {}
+  for (std::size_t i = 0; i < res->rank(); ++i) {
+    (*res)[i] &= computed[i];
+  }
+}
 
 void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
                                    SparsityEngine &analysis) {

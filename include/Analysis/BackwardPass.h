@@ -110,20 +110,6 @@ private:
   visitOp(mlir::linalg::BatchMatmulOp &op, SparsityEngine &analysis);
 
   /**
-   * @brief Infers backward sparsity for a linalg.fill operation.
-   *
-   * The fill value is a scalar constant; there is no tensor operand to
-   * propagate backward to.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return The candidate lattice for `value`, or std::nullopt if `value` is
-   * not the lhs or rhs operand.
-   */
-  static std::optional<proteus::SparsityLattice>
-  visitOp(mlir::linalg::FillOp &op, SparsityEngine &analysis);
-
-  /**
    * @brief Infers backward sparsity for a linalg.broadcast operation.
    *
    * @param op The op to analyse.
@@ -155,20 +141,6 @@ private:
    */
   static std::optional<proteus::SparsityLattice>
   visitOp(mlir::tensor::ConcatOp &op, SparsityEngine &analysis);
-
-  /**
-   * @brief Infers backward sparsity for a tensor.empty operation.
-   *
-   * There is nothing to implement here, this is added to just indicate the
-   * support for the operation. The default behaviour will suffice.
-   *
-   * @param op The op to analyse.
-   * @param analysis The SPA analysis object.
-   * @return The candidate lattice for `value`, or std::nullopt if `value` is
-   * not the lhs or rhs operand.
-   */
-  static std::optional<proteus::SparsityLattice>
-  visitOp(mlir::tensor::EmptyOp &op, SparsityEngine &analysis);
 
   /**
    * @brief Infers backward sparsity for a linalg.conv_2d operation.
@@ -282,8 +254,8 @@ private:
    * @return The candidate lattice for `value`, or std::nullopt if `value` is
    * not the lhs or rhs operand.
    */
-  static std::optional<SparsityLattice>
-  visitPassthroughOp(mlir::Operation &op, SparsityEngine &analysis);
+  static SparsityLattice visitPassthroughOp(mlir::Operation &op,
+                                            SparsityEngine &analysis);
 };
 
 } // namespace proteus
