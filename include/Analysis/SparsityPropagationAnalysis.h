@@ -56,6 +56,12 @@ struct SparsityPropagationAnalysis
       *this, "pass-stage",
       llvm::cl::desc("Stop after this pass: seed, forward, lateral, backward."),
       llvm::cl::init("backward")};
+
+  Pass::Option<bool> timePasses{
+      *this, "time-passes",
+      llvm::cl::desc("Print a per-pass timing breakdown "
+                     "(Seed/Forward/Lateral/Backward) after analysis."),
+      llvm::cl::init(false)};
 };
 
 std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis();
