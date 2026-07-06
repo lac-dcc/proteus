@@ -91,3 +91,33 @@ func.func @batch_matmul_backward_batch_dim_stays_ambiguous(
   %b3 = linalg.batch_matmul {proteus.lattice = [{size = 2 : i64, words = array<i64: 1>}, {size = 4 : i64, words = array<i64: 15>}, {size = 4 : i64, words = array<i64: 15>}]} ins(%b2, %r2 : tensor<2x4x4xf32>, tensor<2x4x4xf32>) outs(%init : tensor<2x4x4xf32>) -> tensor<2x4x4xf32>
   return %b3 : tensor<2x4x4xf32>
 }
+
+// CHECK-LABEL: func.func @batch_matmul_backward_users_agree
+func.func @batch_matmul_backward_users_agree(
+    // CHECK: {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 15>}]}
+    %a : tensor<2x4x4xf32>,
+    %r0 : tensor<2x4x4xf32>,
+    %r1 : tensor<2x4x4xf32>,
+    %init : tensor<2x4x4xf32>
+) -> (tensor<2x4x4xf32>, tensor<2x4x4xf32>) {
+  // CHECK: linalg.batch_matmul {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 15>}]}
+  %b1 = linalg.batch_matmul {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 15>}]} ins(%a, %r0 : tensor<2x4x4xf32>, tensor<2x4x4xf32>) outs(%init : tensor<2x4x4xf32>) -> tensor<2x4x4xf32>
+  // CHECK: linalg.batch_matmul {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 15>}]}
+  %b2 = linalg.batch_matmul {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 15>}]} ins(%a, %r1 : tensor<2x4x4xf32>, tensor<2x4x4xf32>) outs(%init : tensor<2x4x4xf32>) -> tensor<2x4x4xf32>
+  return %b1, %b2 : tensor<2x4x4xf32>, tensor<2x4x4xf32>
+}
+
+// CHECK-LABEL: func.func @batch_matmul_backward_users_disagree
+func.func @batch_matmul_backward_users_disagree(
+    // CHECK: {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 15>}]}
+    %a : tensor<2x4x4xf32>,
+    %r0 : tensor<2x4x4xf32>,
+    %r1 : tensor<2x4x4xf32>,
+    %init : tensor<2x4x4xf32>
+) -> (tensor<2x4x4xf32>, tensor<2x4x4xf32>) {
+  // CHECK: linalg.batch_matmul {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 15>}]}
+  %b1 = linalg.batch_matmul {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 15>}]} ins(%a, %r0 : tensor<2x4x4xf32>, tensor<2x4x4xf32>) outs(%init : tensor<2x4x4xf32>) -> tensor<2x4x4xf32>
+  // CHECK: linalg.batch_matmul {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 15>}]}
+  %b2 = linalg.batch_matmul {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 4 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 15>}]} ins(%a, %r1 : tensor<2x4x4xf32>, tensor<2x4x4xf32>) outs(%init : tensor<2x4x4xf32>) -> tensor<2x4x4xf32>
+  return %b1, %b2 : tensor<2x4x4xf32>, tensor<2x4x4xf32>
+}

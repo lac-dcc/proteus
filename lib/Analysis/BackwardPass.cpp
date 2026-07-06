@@ -32,13 +32,16 @@ void proteus::BackwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
     if (merged != *current) {
       *current = merged;
 
-      for (mlir::Operation *user : analysis.getCandidateValue().getUsers()) {
-        for (mlir::Value operand : user->getOperands()) {
-          if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
-            worklist.push_back(operand);
-          }
-        }
-      }
+      // TODO: We probably don't need this because changes in operands are
+      // completely independent in the backward pass and also there is no loops
+      // or if statements currenlty in the IR that we are working with for
+      // (mlir::Operation *user : analysis.getCandidateValue().getUsers()) {
+      //   for (mlir::Value operand : user->getOperands()) {
+      //     if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
+      //       worklist.push_back(operand);
+      //     }
+      //   }
+      // }
     }
   }
 }
