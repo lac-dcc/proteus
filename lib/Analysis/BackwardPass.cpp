@@ -5,6 +5,7 @@
 #include "mlir/Dialect/Tensor/IR/Tensor.h"
 #include "mlir/IR/BuiltinAttributes.h"
 #include "mlir/IR/Value.h"
+#include "mlir/Interfaces/DestinationStyleOpInterface.h"
 #include "llvm/ADT/TypeSwitch.h"
 
 void proteus::BackwardPass::run(mlir::Block *block, SparsityEngine &analysis) {
@@ -104,7 +105,15 @@ proteus::BackwardPass::visitOp(mlir::linalg::MatmulOp &op,
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::AddOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  auto *res = analysis.getState(op.getResult(0));
+  SparsityLattice candidate = *analysis.getState(analysis.getCandidateValue());
+
+  for (std::size_t i = 0; i < candidate.rank(); i++) {
+    candidate[i] &= (*res)[i];
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
@@ -234,9 +243,11 @@ proteus::BackwardPass::getWorklist(mlir::Block *block) {
   llvm::SmallVector<mlir::Value> worklist;
 
   for (auto &op : block->getOperations()) {
-    for (auto operand : op.getOperands()) {
-      if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
-        worklist.push_back(operand);
+    if (auto dpsOp = mlir::dyn_cast<mlir::DestinationStyleOpInterface>(op)) {
+      for (auto operand : dpsOp.getDpsInputs()) {
+        if (mlir::isa<mlir::RankedTensorType>(operand.getType())) {
+          worklist.push_back(operand);
+        }
       }
     }
   }

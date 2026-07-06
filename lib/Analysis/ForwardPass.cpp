@@ -101,7 +101,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::AddOp &op,
     llvm::BitVector temp = (*lhs)[i];
     temp |= (*rhs)[i];
     // Again we need to respect any preexisting lattices
-    (*res)[i] = temp;
+    (*res)[i] &= temp;
   }
 }
 
