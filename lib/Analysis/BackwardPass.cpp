@@ -119,13 +119,31 @@ proteus::BackwardPass::visitOp(mlir::linalg::AddOp &op,
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::MatvecOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  if (analysis.getCandidateValue() != op.getOperand(0)) {
+    return std::nullopt;
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  SparsityLattice candidate = *analysis.getState(analysis.getCandidateValue());
+  candidate[0] &= (*res)[0];
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::VecmatOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+
+  if (analysis.getCandidateValue() != op.getOperand(1)) {
+    return std::nullopt;
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  SparsityLattice candidate = *analysis.getState(analysis.getCandidateValue());
+  candidate[1] &= (*res)[0];
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
