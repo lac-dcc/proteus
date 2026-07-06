@@ -6,6 +6,7 @@
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
+#include "mlir/Support/Timing.h"
 
 namespace proteus {
 
@@ -39,9 +40,16 @@ void SparsityPropagationAnalysis::runOnOperation() {
     return;
   }
 
+  std::unique_ptr<mlir::DefaultTimingManager> tm;
+  if (timePasses) {
+    tm = std::make_unique<mlir::DefaultTimingManager>();
+    tm->setEnabled(true);
+  }
+  mlir::TimingScope rootScope = tm ? tm->getRootScope() : mlir::TimingScope();
+
   SparsityEngine sa;
   for (auto &block : getOperation().getBody()) {
-    sa.run(&block, *stage);
+    sa.run(&block, *stage, tm ? &rootScope : nullptr);
   }
 
   getOperation().walk([&](mlir::Operation *op) {

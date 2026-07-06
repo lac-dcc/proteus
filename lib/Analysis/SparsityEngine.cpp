@@ -6,23 +6,33 @@
 #include "Analysis/SeedPass.h"
 
 #include "mlir/IR/Value.h"
+#include "mlir/Support/Timing.h"
 
-void proteus::SparsityEngine::run(mlir::Block *block, PassStage stage) {
+void proteus::SparsityEngine::run(mlir::Block *block, PassStage stage,
+                                  mlir::TimingScope *timing) {
+
+  auto scope = nestTimeScope("Seed", timing);
   run<SeedPass>(block);
+
   if (stage == PassStage::Seed) {
     return;
   }
 
+  scope = nestTimeScope("Forward", timing);
   run<ForwardPass>(block);
+
   if (stage == PassStage::Forward) {
     return;
   }
 
+  scope = nestTimeScope("Lateral", timing);
   run<LateralPass>(block);
+
   if (stage == PassStage::Lateral) {
     return;
   }
 
+  scope = nestTimeScope("Backward", timing);
   run<BackwardPass>(block);
 }
 
@@ -70,6 +80,12 @@ void proteus::SparsityEngine::setCandidateValue(const mlir::Value &value) {
 
 mlir::Value &proteus::SparsityEngine::getCandidateValue() {
   return candidateVal;
+}
+
+mlir::TimingScope
+proteus::SparsityEngine::nestTimeScope(llvm::StringRef name,
+                                       mlir::TimingScope *timing) {
+  return (timing != nullptr) ? timing->nest(name) : mlir::TimingScope();
 }
 
 template void

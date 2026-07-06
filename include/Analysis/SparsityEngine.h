@@ -3,8 +3,13 @@
 #include "Analysis/SparsityLattice.h"
 
 #include "mlir/IR/Value.h"
+#include "mlir/Support/Timing.h"
 
 using Result = mlir::LogicalResult;
+
+namespace mlir {
+class TimingScope;
+}
 
 namespace proteus {
 
@@ -25,10 +30,14 @@ public:
    *
    * @param block The MLIR block to analyse.
    * @param stage Runs the analysis up to the requested pass
+   * @param timing If non-null, each stage is wrapped in a nested
+   *        `mlir::TimingScope` under this scope, so per-stage timing shows up
+   *        when the caller's `TimingManager` is enabled.
    * @return success() if all passes completed without errors, failure()
    *         otherwise.
    */
-  void run(mlir::Block *block, PassStage stage = PassStage::Backward);
+  void run(mlir::Block *block, PassStage stage = PassStage::Backward,
+           mlir::TimingScope *timing = nullptr);
 
   /**
    * @brief Returns a read-only reference to the full lattice map.
@@ -82,6 +91,17 @@ public:
    * @return mlir::Value& The internal state's candidate value
    */
   mlir::Value &getCandidateValue();
+
+  /*
+   * @brief Handles nesting when making timing report with time-passes flag in
+   * proteus-opt
+   *
+   * @param name Name of the current scope we are timing
+   * @param *timing Pointer to the timing manager
+   * @return Returns new timing manager after nesting
+   */
+  static mlir::TimingScope nestTimeScope(llvm::StringRef name,
+                                         mlir::TimingScope *timing);
 
 private:
   /**
