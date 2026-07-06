@@ -114,7 +114,6 @@ void proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp &op,
   if ((*rhs)[0].none()) {
     (*res)[0].reset();
   } else {
-    // Respect any preexisting lattice (e.g. an attribute set on the result).
     (*res)[0] &= (*lhs)[0];
   }
 }
@@ -128,7 +127,6 @@ void proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp &op,
   if ((*lhs)[0].none()) {
     (*res)[0].reset();
   } else {
-    // Respect any preexisting lattice (e.g. an attribute set on the result).
     (*res)[0] &= (*rhs)[1];
   }
 }
@@ -140,7 +138,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::TransposeOp &op,
 
   llvm::ArrayRef<int64_t> perm = op.getPermutation();
   for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*input)[perm[i]];
+    (*res)[i] &= (*input)[perm[i]];
   }
 }
 
