@@ -206,8 +206,9 @@ void proteus::ForwardPass::visitOp(mlir::linalg::BroadcastOp &op,
     }
 
     // If we do get to a dimension that existed previously in the input tensor
-    // we propagate the sparsity to the current rank's bitvector
-    (*res)[i] = (*input)[inputDim++];
+    // we propagate the sparsity to the current rank's bitvector, respecting
+    // any preexisting lattice (e.g. an attribute set on the result).
+    (*res)[i] &= (*input)[inputDim++];
   }
 }
 
