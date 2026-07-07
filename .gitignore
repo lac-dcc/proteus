@@ -57,4 +57,5 @@ models
 mlir_out
 
 # Python related Files
+__pycache__
 uv.lock
