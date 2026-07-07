@@ -4,9 +4,14 @@
 func.func @div_test(
     %lhs : tensor<4x3xf32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 10>}, {size = 3 : i64, words = array<i64: 5>}]},
     %rhs : tensor<4x3xf32>,
-    %init : tensor<4x3xf32>
-) -> tensor<4x3xf32> {
+    %init : tensor<4x3xf32>,
+    %lhs_u : tensor<4x3xi32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 10>}, {size = 3 : i64, words = array<i64: 5>}]},
+    %rhs_u : tensor<4x3xi32>,
+    %init_u : tensor<4x3xi32>
+) -> tensor<4x3xi32> {
   // CHECK: linalg.div {proteus.lattice = [{size = 4 : i64, words = array<i64: 10>}, {size = 3 : i64, words = array<i64: 5>}]}
   %0 = linalg.div ins(%lhs, %rhs : tensor<4x3xf32>, tensor<4x3xf32>) outs(%init : tensor<4x3xf32>) -> tensor<4x3xf32>
-  return %0 : tensor<4x3xf32>
+  // CHECK: linalg.div_unsigned {proteus.lattice = [{size = 4 : i64, words = array<i64: 10>}, {size = 3 : i64, words = array<i64: 5>}]}
+  %1 = linalg.div_unsigned ins(%lhs_u, %rhs_u : tensor<4x3xi32>, tensor<4x3xi32>) outs(%init_u : tensor<4x3xi32>) -> tensor<4x3xi32>
+  return %1 : tensor<4x3xi32>
 }
