@@ -20,14 +20,26 @@ if [[ "$(uname)" == "Darwin" ]]; then
   GREP="ggrep"
 fi
 
+if ! command -v python3 &>/dev/null; then
+  echo "Error: python3 is required (used for the breakoff-percentage columns)." >&2
+  exit 1
+fi
+
 LATTICE_NAMES=(
   "banded-64"
-  # "banded-32"
-  # "banded-64"
-  # "banded-128"
+  "banded-128"
+  "banded-192"
+  "banded-64-strided"
+  "all-dense"
+  "all-sparse"
 )
 LATTICE_ATTRS=(
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: 0, -1, -1, 4294967295>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, -1, 4294967295>}, {size = 224 : i64, words = array<i64: 0, 0, -1, 4294967295>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 4294967295>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 4294967295>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, -1, 0, 4294967295>}, {size = 224 : i64, words = array<i64: 0, -1, 0, 4294967295>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -1, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: -1, -1, -1, 4294967295>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}]"
   # "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 9150747060186627966, -4647998506761461825, -2323999253380730913, 4261148655>}, {size = 224 : i64, words = array<i64: 9150747060186627966, -4647998506761461825, -2323999253380730913, 4261148655>}]"
   # "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 9005497106850332284, 4502748553425166142, -6971997760142192737, 4193511375>}, {size = 224 : i64, words = array<i64: 9005497106850332284, 4502748553425166142, -6971997760142192737, 4193511375>}]"
   # "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 8133997386832558192, 4066998693416279096, 2033499346708139548, 3787687694>}, {size = 224 : i64, words = array<i64: 8133997386832558192, 4066998693416279096, 2033499346708139548, 3787687694>}]"
@@ -62,17 +74,22 @@ time_for_stage() {
   echo "$1" | awk -v stage="$2" '$0 ~ ("  " stage "$") {print $1}'
 }
 
+breakoff_for_model() {
+  local model="$1" attr="$2"
+  python3 "$SCRIPT_DIR/find_sparsity_breakoff.py" "$model" "$attr"
+}
+
 for li in "${!LATTICE_NAMES[@]}"; do
   lattice_name="${LATTICE_NAMES[$li]}"
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s\n" \
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s\n" \
     "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
-    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s\n" \
+    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM"
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s\n" \
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
-    "-------" "------" "------" "-------" "--------"
+    "-------" "------" "------" "-------" "--------" "--------" "------"
 
   for model in "$MLIR_DIR"/*.mlir; do
     name="$(basename "$model" .mlir)"
@@ -97,9 +114,15 @@ for li in "${!LATTICE_NAMES[@]}"; do
     time_total=$(awk -v a="$time_seed" -v b="$time_forward" -v c="$time_lateral" -v d="$time_backward" \
       'BEGIN{printf "%.4f", a+b+c+d}')
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s\n" \
+    IFS=',' read -r breakoff_pct matmul_pct <<< "$(breakoff_for_model "$model" "$lattice_attr")"
+    breakoff_str="${breakoff_pct}%"
+    matmul_str="${matmul_pct}"
+    [[ "$matmul_str" != "None" ]] && matmul_str="${matmul_str}%"
+
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s\n" \
       "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
-      "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total"
+      "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
+      "$breakoff_str" "$matmul_str"
   done
   echo
 done
