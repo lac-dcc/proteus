@@ -15,4 +15,5 @@ add_mlir_library(SparsityPropagationAnalysis
   MLIRArithDialect
   MLIRLinalgDialect
   MLIRSupport
+  MLIRAsmParser
 )
