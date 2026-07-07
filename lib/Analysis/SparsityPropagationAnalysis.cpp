@@ -3,6 +3,7 @@
 #include "Analysis/SparsityLattice.h"
 #include "Analysis/Utilities.h"
 
+#include "mlir/AsmParser/AsmParser.h"
 #include "mlir/IR/AsmState.h"
 #include "mlir/IR/Value.h"
 #include "mlir/Pass/Pass.h"
@@ -38,6 +39,27 @@ void SparsityPropagationAnalysis::runOnOperation() {
         << "'; expected one of: seed, forward, lateral, backward";
     signalPassFailure();
     return;
+  }
+
+  if (!seedLattice.empty()) {
+    if (getOperation().getNumArguments() == 0) {
+      getOperation().emitError()
+          << "spa-analysis: seed-lattice given but function has no arguments";
+      signalPassFailure();
+      return;
+    }
+
+    auto attr = mlir::parseAttribute(seedLattice, getOperation().getContext());
+    auto arrayAttr = mlir::dyn_cast_or_null<mlir::ArrayAttr>(attr);
+    if (!arrayAttr) {
+      getOperation().emitError()
+          << "spa-analysis: seed-lattice must parse to an ArrayAttr: '"
+          << seedLattice << "'";
+      signalPassFailure();
+      return;
+    }
+
+    getOperation().setArgAttr(0, "proteus.lattice", arrayAttr);
   }
 
   std::unique_ptr<mlir::DefaultTimingManager> tm;

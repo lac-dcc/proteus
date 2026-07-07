@@ -62,6 +62,15 @@ struct SparsityPropagationAnalysis
       llvm::cl::desc("Print a per-pass timing breakdown "
                      "(Seed/Forward/Lateral/Backward) after analysis."),
       llvm::cl::init(false)};
+
+  Pass::Option<std::string> seedLattice{
+      *this, "seed-lattice",
+      llvm::cl::desc(
+          "Raw `proteus.lattice` ArrayAttr text (the same syntax produced by "
+          "lattice-dump=true) to seed onto the entry block's argument 0, "
+          "overriding any attribute already present and the fully-dense "
+          "default."),
+      llvm::cl::init("")};
 };
 
 std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis();
