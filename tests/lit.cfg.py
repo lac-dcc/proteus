@@ -8,7 +8,8 @@ config.suffixes = ['.mlir']
 config.test_source_root = os.path.dirname(os.path.abspath(__file__))
 
 project_root = os.path.dirname(config.test_source_root)
-build_bin = os.path.join(project_root, 'build', 'bin')
+build_dir = os.environ.get('PROTEUS_BUILD_DIR', 'build')
+build_bin = os.path.join(project_root, build_dir, 'bin')
 
 llvm_prefix = os.environ.get('LLVM_PREFIX', '')
 llvm_bin = os.path.join(llvm_prefix, 'bin') if llvm_prefix else ''

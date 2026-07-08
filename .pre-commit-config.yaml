@@ -15,3 +15,10 @@ repos:
         pass_filenames: false
         always_run: true
         stages: [pre-commit]
+      - id: make-lit-coverage-check
+        name: make lit-coverage-check
+        entry: make lit-coverage-check
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-commit]

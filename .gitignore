@@ -42,6 +42,7 @@
 
 # CMake Generated
 build/
+build-cov/
 docs/
 
 # Note Files
@@ -49,6 +50,7 @@ docs/
 *.txt
 
 # Tests related files
+*.profraw
 tests/.lit_test_times.txt
 Output
 
