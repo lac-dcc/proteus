@@ -1,7 +1,9 @@
 .PHONY: all config build set-style format test tidy watch clean docs \
-        dataset-build dataset-convert dataset-clean coverage-check
+        dataset-build dataset-convert dataset-clean coverage-check \
+        lit-coverage lit-coverage-check lit-coverage-clean
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
+COVERAGE_MIN ?= 85
 
 config:
 	cmake -S . -B build -G Ninja
@@ -51,3 +53,30 @@ dataset-clean:
 
 coverage-check:
 	python3 scripts/check_forward_pass_coverage.py
+
+lit-coverage:
+	cmake -S . -B build-cov -G Ninja \
+		-DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping -fprofile-continuous" \
+		-DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping -fprofile-continuous" \
+		-DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate -fprofile-continuous"
+	cmake --build build-cov --parallel $(NPROC)
+	rm -rf build-cov/profiles && mkdir -p build-cov/profiles
+	PROTEUS_BUILD_DIR=build-cov \
+		LLVM_PROFILE_FILE="$(CURDIR)/build-cov/profiles/proteus-%p.profraw" \
+		lit -j1 tests
+	llvm-profdata merge -sparse build-cov/profiles/*.profraw -o build-cov/proteus.profdata
+	llvm-cov report build-cov/bin/proteus-opt -instr-profile=build-cov/proteus.profdata \
+		$(shell find lib/Analysis -name "*.cpp")
+	llvm-cov show build-cov/bin/proteus-opt -instr-profile=build-cov/proteus.profdata \
+		-format=html -output-dir=build-cov/coverage-html \
+		$(shell find lib/Analysis -name "*.cpp")
+	@echo "HTML report: build-cov/coverage-html/index.html"
+
+lit-coverage-check: lit-coverage
+	llvm-cov export -summary-only build-cov/bin/proteus-opt \
+		-instr-profile=build-cov/proteus.profdata \
+		$(shell find lib/Analysis -name "*.cpp") \
+		| python3 scripts/check_coverage_threshold.py $(COVERAGE_MIN)
+
+lit-coverage-clean:
+	rm -rf build-cov

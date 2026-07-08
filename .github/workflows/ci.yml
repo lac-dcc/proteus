@@ -67,3 +67,46 @@ jobs:
 
       - name: Test (unit)
         run: ctest --test-dir build --output-on-failure
+
+  coverage:
+    name: Line Coverage (lib/Analysis)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install LLVM/MLIR
+        run: |
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+          echo "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-22 main" \
+            | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update -qq
+          sudo apt-get install -y \
+            llvm-22 \
+            llvm-22-dev \
+            libmlir-22-dev \
+            mlir-22-tools \
+            clang-22 \
+            ninja-build \
+            libgtest-dev
+          sudo ln -sf /usr/lib/llvm-22/bin/llvm-cov /usr/local/bin/llvm-cov
+          sudo ln -sf /usr/lib/llvm-22/bin/llvm-profdata /usr/local/bin/llvm-profdata
+
+      - name: Install lit
+        run: pip install lit
+
+      - name: Generate coverage and check threshold
+        env:
+          CC: clang-22
+          CXX: clang++-22
+          CMAKE_PREFIX_PATH: /usr/lib/llvm-22
+          LLVM_PREFIX: /usr/lib/llvm-22
+        run: make lit-coverage-check COVERAGE_MIN=85
+
+      - name: Upload HTML coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html
+          path: build-cov/coverage-html/
+          if-no-files-found: ignore
