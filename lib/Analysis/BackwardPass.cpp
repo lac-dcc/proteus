@@ -211,7 +211,43 @@ proteus::BackwardPass::visitOp(mlir::tensor::ConcatOp &op,
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::Conv2DOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+  if (analysis.getCandidateValue() != op.getOperand(0)) {
+    return *analysis.getState(analysis.getCandidateValue());
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  // For each spatial dimension
+  for (std::size_t i = 0; i < candidate.rank(); i++) {
+    // Create a new bitvector to operate on, that will be ANDed to the
+    // corresponding candidate's dimension
+    llvm::BitVector vec(candidate[i].size(), true);
+    // For each result fiber in that spatial dimension
+    for (std::size_t fiber = 0; fiber < (*res)[i].size(); fiber++) {
+      // If that fiber is dense move on, we won't change any of the bits in vec
+      // so move on
+      if ((*res)[i][fiber]) {
+        continue;
+      }
+
+      // In the case where the fiber is sparse, we will sequentially make sparse
+      // al the bits in that filter window in vec
+      for (int64_t fFiber = 0; fFiber < filterType.getDimSize(i); fFiber++) {
+        if (fiber + fFiber < candidate[i].size()) {
+          vec.reset(fiber + fFiber);
+        }
+      }
+    }
+
+    // Append vec to the candidate and move on to the next spatial dimension
+    candidate[i] &= vec;
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
