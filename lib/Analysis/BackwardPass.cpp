@@ -352,7 +352,43 @@ proteus::BackwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+  if (analysis.getCandidateValue() != op.getOperand(0)) {
+    return *analysis.getState(analysis.getCandidateValue());
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  llvm::SmallVector<int64_t, 2> strides(op.getStrides().getValues<int64_t>());
+  llvm::SmallVector<int64_t, 2> dilations(
+      op.getDilations().getValues<int64_t>());
+
+  for (uint64_t dim = 0; dim < 2; dim++) {
+    auto stride = strides[dim];
+    auto dilation = dilations[dim];
+
+    llvm::BitVector vec(candidate[dim + 2].size(), true);
+    for (std::size_t fiber = 0; fiber < (*res)[dim + 2].size(); fiber++) {
+      if ((*res)[dim + 2][fiber]) {
+        continue;
+      }
+
+      for (int64_t fFiber = 0; fFiber < filterType.getDimSize(dim + 1);
+           fFiber++) {
+        std::size_t pos = (fiber * stride) + (fFiber * dilation);
+        if (pos < candidate[dim + 2].size()) {
+          vec.reset(pos);
+        }
+      }
+    }
+
+    candidate[dim + 2] &= vec;
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
