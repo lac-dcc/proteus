@@ -211,25 +211,184 @@ proteus::BackwardPass::visitOp(mlir::tensor::ConcatOp &op,
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::Conv2DOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+  if (analysis.getCandidateValue() != op.getOperand(0)) {
+    return *analysis.getState(analysis.getCandidateValue());
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  // For each spatial dimension
+  for (std::size_t i = 0; i < 2; i++) {
+    // Create a new bitvector to operate on, that will be ANDed to the
+    // corresponding candidate's dimension
+    llvm::BitVector vec(candidate[i].size(), true);
+    // For each result fiber in that spatial dimension
+    for (std::size_t fiber = 0; fiber < (*res)[i].size(); fiber++) {
+      // If that fiber is dense move on, we won't change any of the bits in vec
+      // so move on
+      if ((*res)[i][fiber]) {
+        continue;
+      }
+
+      // In the case where the fiber is sparse, we will sequentially make sparse
+      // al the bits in that filter window in vec
+      for (int64_t fFiber = 0; fFiber < filterType.getDimSize(i); fFiber++) {
+        if (fiber + fFiber < candidate[i].size()) {
+          vec.reset(fiber + fFiber);
+        }
+      }
+    }
+
+    // Append vec to the candidate and move on to the next spatial dimension
+    candidate[i] &= vec;
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+  if (analysis.getCandidateValue() != op.getOperand(0)) {
+    return *analysis.getState(analysis.getCandidateValue());
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  llvm::SmallVector<int64_t, 2> strides(op.getStrides().getValues<int64_t>());
+  llvm::SmallVector<int64_t, 2> dilations(
+      op.getDilations().getValues<int64_t>());
+
+  // For each spatial dimension
+  for (uint64_t dim = 0; dim < 2; dim++) {
+    auto stride = strides[dim];
+    auto dilation = dilations[dim];
+
+    // Create a new bitvector to operate on, that will be ANDed to the
+    // corresponding candidate's dimension
+    llvm::BitVector vec(candidate[dim + 2].size(), true);
+    // For each result fiber in that spatial dimension
+    for (std::size_t fiber = 0; fiber < (*res)[dim + 2].size(); fiber++) {
+      // If that fiber is dense move on, we won't change any of the bits in vec
+      if ((*res)[dim + 2][fiber]) {
+        continue;
+      }
+
+      // In the case where the fiber is sparse, we will sequentially make
+      // sparse all the bits in that filter window in vec
+      for (int64_t fFiber = 0; fFiber < filterType.getDimSize(dim + 2);
+           fFiber++) {
+        std::size_t pos = (fiber * stride) + (fFiber * dilation);
+        if (pos < candidate[dim + 2].size()) {
+          vec.reset(pos);
+        }
+      }
+    }
+
+    // Append vec to the candidate and move on to the next spatial dimension
+    candidate[dim + 2] &= vec;
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+  if (analysis.getCandidateValue() != op.getOperand(0)) {
+    return *analysis.getState(analysis.getCandidateValue());
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  llvm::SmallVector<int64_t, 2> strides(op.getStrides().getValues<int64_t>());
+  llvm::SmallVector<int64_t, 2> dilations(
+      op.getDilations().getValues<int64_t>());
+
+  // For each spatial dimension
+  for (uint64_t dim = 0; dim < 2; dim++) {
+    auto stride = strides[dim];
+    auto dilation = dilations[dim];
+
+    // Create a new bitvector to operate on, that will be ANDed to the
+    // corresponding candidate's dimension
+    llvm::BitVector vec(candidate[dim + 1].size(), true);
+    // For each result fiber in that spatial dimension
+    for (std::size_t fiber = 0; fiber < (*res)[dim + 1].size(); fiber++) {
+      // If that fiber is dense move on, we won't change any of the bits in vec
+      if ((*res)[dim + 1][fiber]) {
+        continue;
+      }
+
+      // In the case where the fiber is sparse, we will sequentially make
+      // sparse all the bits in that filter window in vec
+      for (int64_t fFiber = 0; fFiber < filterType.getDimSize(dim); fFiber++) {
+        std::size_t pos = (fiber * stride) + (fFiber * dilation);
+        if (pos < candidate[dim + 1].size()) {
+          vec.reset(pos);
+        }
+      }
+    }
+
+    // Append vec to the candidate and move on to the next spatial dimension
+    candidate[dim + 1] &= vec;
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
 proteus::BackwardPass::visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
                                SparsityEngine &analysis) {
-  return *analysis.getState(analysis.getCandidateValue());
+  if (analysis.getCandidateValue() != op.getOperand(0)) {
+    return *analysis.getState(analysis.getCandidateValue());
+  }
+
+  auto *res = analysis.getState(op.getResult(0));
+  auto candidate = *analysis.getState(analysis.getCandidateValue());
+
+  auto filterType =
+      llvm::cast<mlir::RankedTensorType>(op.getOperand(1).getType());
+
+  llvm::SmallVector<int64_t, 2> strides(op.getStrides().getValues<int64_t>());
+  llvm::SmallVector<int64_t, 2> dilations(
+      op.getDilations().getValues<int64_t>());
+
+  for (uint64_t dim = 0; dim < 2; dim++) {
+    auto stride = strides[dim];
+    auto dilation = dilations[dim];
+
+    llvm::BitVector vec(candidate[dim + 2].size(), true);
+    for (std::size_t fiber = 0; fiber < (*res)[dim + 2].size(); fiber++) {
+      if ((*res)[dim + 2][fiber]) {
+        continue;
+      }
+
+      for (int64_t fFiber = 0; fFiber < filterType.getDimSize(dim + 1);
+           fFiber++) {
+        std::size_t pos = (fiber * stride) + (fFiber * dilation);
+        if (pos < candidate[dim + 2].size()) {
+          vec.reset(pos);
+        }
+      }
+    }
+
+    candidate[dim + 2] &= vec;
+  }
+
+  return candidate;
 }
 
 std::optional<proteus::SparsityLattice>
