@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
-BINARY = Path(__file__).resolve().parent.parent / "build" / "bin" / "proteus-opt"
+BUILD_DIR = os.environ.get("PROTEUS_BUILD_DIR", "build-release")
+BINARY = Path(__file__).resolve().parent.parent / BUILD_DIR / "bin" / "proteus-opt"
 
 DIM_PATTERN = re.compile(
     r"\{size\s*=\s*(\d+)\s*:\s*i64,\s*words\s*=\s*array<i64:\s*([^>]*)>\}"

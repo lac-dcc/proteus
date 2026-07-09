@@ -3,11 +3,12 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-BINARY="$ROOT_DIR/build/bin/proteus-opt"
+export PROTEUS_BUILD_DIR="${PROTEUS_BUILD_DIR:-build-release}"
+BINARY="$ROOT_DIR/$PROTEUS_BUILD_DIR/bin/proteus-opt"
 MLIR_DIR="$ROOT_DIR/mlir_out"
 
 if [[ ! -x "$BINARY" ]]; then
-  echo "Error: $BINARY not found or not executable. Run 'make build' first." >&2
+  echo "Error: $BINARY not found or not executable. Run 'make $PROTEUS_BUILD_DIR' first (or set PROTEUS_BUILD_DIR=build to use a debug build)." >&2
   exit 1
 fi
 
