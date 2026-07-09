@@ -6,6 +6,7 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 export PROTEUS_BUILD_DIR="${PROTEUS_BUILD_DIR:-build-release}"
 BINARY="$ROOT_DIR/$PROTEUS_BUILD_DIR/bin/proteus-opt"
 MLIR_DIR="$ROOT_DIR/mlir_out"
+RUNTIME_CACHE="$SCRIPT_DIR/.model_runtimes.tsv"
 
 if [[ ! -x "$BINARY" ]]; then
   echo "Error: $BINARY not found or not executable. Run 'make $PROTEUS_BUILD_DIR' first (or set PROTEUS_BUILD_DIR=build to use a debug build)." >&2
@@ -24,6 +25,11 @@ fi
 if ! command -v python3 &>/dev/null; then
   echo "Error: python3 is required (used for the breakoff-percentage columns)." >&2
   exit 1
+fi
+
+if [[ ! -f "$RUNTIME_CACHE" ]]; then
+  echo "No runtime cache found; benchmarking single-iteration model runtimes first..." >&2
+  python3 "$SCRIPT_DIR/benchmark_runtime.py"
 fi
 
 LATTICE_NAMES=(
@@ -80,17 +86,22 @@ breakoff_for_model() {
   python3 "$SCRIPT_DIR/find_sparsity_breakoff.py" "$model" "$attr"
 }
 
+runtime_for_model() {
+  local name="$1"
+  awk -F'\t' -v name="$name" '$1 == name {printf "%.4f", $2}' "$RUNTIME_CACHE"
+}
+
 for li in "${!LATTICE_NAMES[@]}"; do
   lattice_name="${LATTICE_NAMES[$li]}"
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s\n" \
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s | %10s %12s\n" \
     "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
-    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s\n" \
+    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Run 1x(s)" "Speedup"
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s | %10s %12s\n" \
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
-    "-------" "------" "------" "-------" "--------" "--------" "------"
+    "-------" "------" "------" "-------" "--------" "--------" "------" "---------" "-------"
 
   for model in "$MLIR_DIR"/*.mlir; do
     name="$(basename "$model" .mlir)"
@@ -120,10 +131,19 @@ for li in "${!LATTICE_NAMES[@]}"; do
     matmul_str="${matmul_pct}"
     [[ "$matmul_str" != "None" ]] && matmul_str="${matmul_str}%"
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s\n" \
+    run_once="$(runtime_for_model "$name")"
+    [[ -z "$run_once" ]] && run_once="n/a"
+
+    speedup="None"
+    if [[ "$run_once" != "None" ]]; then
+      speedup=$(awk -v r="$run_once" -v t="$time_total" \
+        'BEGIN{ if (t > 0) printf "%.1fx", r/t; else print "None" }')
+    fi
+
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s | %10s %12s\n" \
       "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
       "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
-      "$breakoff_str" "$matmul_str"
+      "$breakoff_str" "$matmul_str" "$run_once" "$speedup"
   done
   echo
 done
