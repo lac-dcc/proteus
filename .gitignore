@@ -43,11 +43,13 @@
 # CMake Generated
 build/
 build-cov/
+build-release/
 docs/
 
 # Note Files
 *.md
 *.txt
+*.tsv
 
 # Tests related files
 *.profraw

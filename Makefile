@@ -1,4 +1,4 @@
-.PHONY: all config build set-style format test tidy watch clean docs \
+.PHONY: all config build config-release build-release set-style format test tidy watch clean docs \
         dataset-build dataset-convert dataset-clean coverage-check \
         lit-coverage lit-coverage-check lit-coverage-clean
 
@@ -13,6 +13,15 @@ build/build.ninja: CMakeLists.txt lib/CMakeLists.txt tools/proteus-opt/CMakeList
 
 build: build/build.ninja
 	cmake --build build --parallel $(NPROC)
+
+config-release:
+	cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+build-release/build.ninja: CMakeLists.txt lib/CMakeLists.txt tools/proteus-opt/CMakeLists.txt tests/CMakeLists.txt tests/unit/CMakeLists.txt
+	cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+build-release: build-release/build.ninja
+	cmake --build build-release --parallel $(NPROC)
 
 set-style:
 	@clang-format --style=LLVM --dump-config > .clang-format
