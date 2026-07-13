@@ -1,23 +1,28 @@
 .PHONY: all config build config-release build-release set-style format test tidy watch clean docs \
         dataset-build dataset-convert dataset-clean coverage-check \
-        lit-coverage lit-coverage-check lit-coverage-clean
+        lit-coverage lit-coverage-check lit-coverage-clean submodules
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
 
-config:
+submodules: external/mlir-probe/.git
+
+external/mlir-probe/.git:
+	git submodule update --init --recursive
+
+config: submodules
 	cmake -S . -B build -G Ninja
 
-build/build.ninja: CMakeLists.txt lib/CMakeLists.txt tools/proteus-opt/CMakeLists.txt tests/CMakeLists.txt tests/unit/CMakeLists.txt
+build/build.ninja: CMakeLists.txt lib/CMakeLists.txt tools/proteus-opt/CMakeLists.txt tests/CMakeLists.txt tests/unit/CMakeLists.txt external/mlir-probe/.git
 	cmake -S . -B build -G Ninja
 
 build: build/build.ninja
 	cmake --build build --parallel $(NPROC)
 
-config-release:
+config-release: submodules
 	cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 
-build-release/build.ninja: CMakeLists.txt lib/CMakeLists.txt tools/proteus-opt/CMakeLists.txt tests/CMakeLists.txt tests/unit/CMakeLists.txt
+build-release/build.ninja: CMakeLists.txt lib/CMakeLists.txt tools/proteus-opt/CMakeLists.txt tests/CMakeLists.txt tests/unit/CMakeLists.txt external/mlir-probe/.git
 	cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
 
 build-release: build-release/build.ninja
