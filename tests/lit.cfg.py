@@ -1,3 +1,4 @@
+import glob
 import lit.formats
 import os
 
@@ -20,3 +21,10 @@ if llvm_bin:
 path_dirs.append(os.environ.get('PATH', ''))
 
 config.environment['PATH'] = os.pathsep.join(path_dirs)
+
+# Shared library extension (.so/.dylib/...) varies by platform, so glob for
+# whatever CMake actually produced instead of hard-coding a suffix.
+runtime_libs = glob.glob(
+    os.path.join(project_root, build_dir, 'lib', 'libProteusProbeRuntime.*'))
+if runtime_libs:
+    config.substitutions.append(('%proteus_runtime_lib', runtime_libs[0]))
