@@ -77,20 +77,27 @@ SparsityLattice SparsityLattice::meet(const SparsityLattice &a,
   return lattice;
 }
 
+llvm::SmallVector<int64_t>
+SparsityLattice::packWords(const llvm::BitVector &bv) {
+  llvm::SmallVector<int64_t> words;
+  for (unsigned i = 0; i < bv.size(); i += 64) {
+    int64_t word = 0;
+    for (unsigned b = i; b < std::min(i + 64U, bv.size()); ++b) {
+      if (bv[b]) {
+        word |= (int64_t{1} << (b - i));
+      }
+    }
+    words.push_back(word);
+  }
+
+  return words;
+}
+
 mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
                                         mlir::MLIRContext *ctx) {
   llvm::SmallVector<mlir::Attribute> bvAttrs;
   for (const auto &bv : lattice.sparsities) {
-    llvm::SmallVector<int64_t> words;
-    for (unsigned i = 0; i < bv.size(); i += 64) {
-      int64_t word = 0;
-      for (unsigned b = i; b < std::min(i + 64U, bv.size()); ++b) {
-        if (bv[b]) {
-          word |= (int64_t{1} << (b - i));
-        }
-      }
-      words.push_back(word);
-    }
+    llvm::SmallVector<int64_t> words = packWords(bv);
     auto dict = mlir::DictionaryAttr::get(
         ctx, {
                  {mlir::StringAttr::get(ctx, "size"),
@@ -102,6 +109,24 @@ mlir::ArrayAttr SparsityLattice::toAttr(const SparsityLattice &lattice,
     bvAttrs.push_back(dict);
   }
   return mlir::ArrayAttr::get(ctx, bvAttrs);
+}
+
+void SparsityLattice::printAsAttr(const SparsityLattice &lattice,
+                                  llvm::raw_ostream &os) {
+  os << "[";
+  for (uint64_t d = 0; d < lattice.sparsities.size(); ++d) {
+    if (d > 0) {
+      os << ", ";
+    }
+    const llvm::BitVector &bv = lattice.sparsities[d];
+    llvm::SmallVector<int64_t> words = packWords(bv);
+    os << "{size = " << bv.size() << " : i64, words = array<i64:";
+    for (size_t w = 0; w < words.size(); ++w) {
+      os << (w == 0 ? " " : ", ") << words[w];
+    }
+    os << ">}";
+  }
+  os << "]";
 }
 
 std::optional<SparsityLattice>
