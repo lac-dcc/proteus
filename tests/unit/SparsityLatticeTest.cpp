@@ -42,6 +42,22 @@ TEST(SparsityLattice, ToAttrWordCounts) {
   EXPECT_EQ(size1, 512);
 }
 
+TEST(SparsityLattice, PrintAsAttrMatchesToAttrPrintedText) {
+  mlir::MLIRContext ctx;
+  proteus::SparsityLattice lat({4, 80});
+
+  auto attr = proteus::SparsityLattice::toAttr(lat, &ctx);
+  std::string fromAttr;
+  llvm::raw_string_ostream attrOs(fromAttr);
+  attr.print(attrOs);
+
+  std::string fromHelp;
+  llvm::raw_string_ostream helperOs(fromHelp);
+  proteus::SparsityLattice::printAsAttr(lat, helperOs);
+
+  EXPECT_EQ(fromAttr, fromHelp);
+}
+
 TEST(SparsityLattice, RankMatchesNumberOfDimensions) {
   proteus::SparsityLattice lat({4, 8, 16});
   EXPECT_EQ(lat.rank(), 3u);

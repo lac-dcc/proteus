@@ -128,11 +128,22 @@ public:
                                 mlir::MLIRContext *ctx);
 
   /**
+   * @brief Prints the lattice using the same `{size = .., words = array<i64:
+   * ..>}` syntax toAttr serialises to an MLIR attribute, without requiring an
+   * mlir::MLIRContext.
+   *
+   * @param lattice The lattice to print.
+   * @param os      The output stream to write to.
+   */
+  static void printAsAttr(const SparsityLattice &lattice,
+                          llvm::raw_ostream &os);
+
+  /**
    * @brief Deserialises the MLIR dictionary attribute to a SparsityLattice
    * object.
    *
-   * Looks for a "spa.sparsity" key in @p dict. Returns std::nullopt if the key
-   * is absent, allowing callers to defer to the forward pass.
+   * Looks for a "proteus.sparsity" key in @p dict. Returns std::nullopt if the
+   * key is absent, allowing callers to defer to the forward pass.
    *
    * @param dict A DictionaryAttr on a function argument.
    * @return The reconstructed lattice, or std::nullopt if no sparsity
@@ -141,6 +152,17 @@ public:
   static std::optional<SparsityLattice>
   fromAttr(const mlir::DictionaryAttr &dict);
 
+  /**
+   * @brief Deserialises the MLIR array attribute to a SparsityLattice
+   * object.
+   *
+   * Looks for a "proteus.sparsity" key in @p dict. Returns std::nullopt if the
+   * key is absent, allowing callers to defer to the forward pass.
+   *
+   * @param dict A ArrayAttr on a function argument.
+   * @return The reconstructed lattice, or std::nullopt if no sparsity
+   * annotation is present.
+   */
   static std::optional<SparsityLattice>
   fromAttr(const mlir::ArrayAttr &arrayAttr);
 
@@ -156,13 +178,33 @@ public:
   static std::optional<SparsityLattice>
   defaultFromValue(const mlir::Value &value);
 
+  /**
+   * @brief Human readable pretty printer for sparsity lattice
+   *
+   * @param &out The outstream to print out
+   * @param &lattice The lattice to print
+   * @return The outstream that was altered with the lattice
+   */
   friend llvm::raw_ostream &operator<<(llvm::raw_ostream &out,
                                        const SparsityLattice &lattice);
 
 private:
   llvm::SmallVector<llvm::BitVector> sparsities;
 
+  /**
+   * @brief Helper function for the fromAttr function, for more details refer
+   * to the overloaded fromAttr function
+   */
   static SparsityLattice constructFromAttr(const mlir::ArrayAttr &arrayAttr);
+
+  /**
+   * @brief Takes a reference to a single bitvector of a sparsity lattice
+   * and packs into words for printing and attaching as an attribute
+   *
+   * @param The bitvector to pack into words
+   * @return A vector of words
+   */
+  static llvm::SmallVector<int64_t> packWords(const llvm::BitVector &bv);
 };
 
 } // namespace proteus
