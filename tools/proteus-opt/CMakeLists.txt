@@ -12,6 +12,8 @@ target_link_libraries(proteus-opt PRIVATE
   MLIRFuncDialect
   MLIRLinalgDialect
   MLIRTensorDialect
+  MLIRProbeDialect
+  MLIRProbeTransforms
   MLIROptLib
   MLIRPass
   MLIRIR
