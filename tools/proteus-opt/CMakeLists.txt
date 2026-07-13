@@ -8,13 +8,9 @@ set_target_properties(proteus-opt PROPERTIES
 
 target_link_libraries(proteus-opt PRIVATE
   SparsityPropagationAnalysis
-  MLIRArithDialect
-  MLIRFuncDialect
-  MLIRLinalgDialect
-  MLIRTensorDialect
   MLIRProbeDialect
   MLIRProbeTransforms
   MLIROptLib
-  MLIRPass
-  MLIRIR
+  MLIRRegisterAllDialects
+  MLIRRegisterAllPasses
 )
