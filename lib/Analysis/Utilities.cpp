@@ -28,6 +28,12 @@ void proteus::printState(
   llvm::outs() << os.str();
 }
 
+// TODO: Figure this out
+proteus::SparsityLattice proteus::observeMemref(DynamicMemRefType<float> mref) {
+  llvm::SmallVector<uint64_t> shape(mref.sizes, mref.sizes + mref.rank);
+  return {shape};
+}
+
 uint64_t proteus::ZeroCounter::count(const SparsityLattice &lattice) {
   uint64_t zeros = 0;
 

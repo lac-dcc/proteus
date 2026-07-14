@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Analysis/SparsityLattice.h"
+#include "mlir/ExecutionEngine/CRunnerUtils.h"
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/DenseMap.h"
 
@@ -8,6 +9,17 @@ using ZeroMap = llvm::DenseMap<mlir::Value, uint64_t>;
 
 namespace proteus {
 void printState(const llvm::DenseMap<mlir::Value, SparsityLattice> &state);
+
+/**
+ * @brief Computes the per-dimension dense/sparse bitmap for a runtime memref.
+ *
+ * A dimension's slice is dense if any element with that index was observed
+ * nonzero, sparse if every such element is zero.
+ *
+ * @param mref The observed tensor's runtime buffer.
+ * @return The runtime SparsityLattice describing the buffer's sparsity.
+ */
+SparsityLattice observeMemref(DynamicMemRefType<float> mref);
 
 /* Keeps track of all the zeroes in the global analysis state */
 struct ZeroCounter {

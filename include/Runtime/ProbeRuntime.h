@@ -1,5 +1,6 @@
 #pragma once
 
+#include "Analysis/SparsityLattice.h"
 #include "mlir/ExecutionEngine/CRunnerUtils.h"
 
 #include "llvm/ADT/DenseMap.h"
@@ -10,7 +11,8 @@
 /*
  * @brief Global state of observations per pair of {opID, resultID}
  */
-static llvm::DenseMap<std::pair<int32_t, int32_t>, int64_t> state; // NOLINT
+static llvm::DenseMap<std::pair<int32_t, int32_t>, proteus::SparsityLattice>
+    state; // NOLINT
 
 /**
  * @brief Records a runtime observation of a tensor's buffer.
