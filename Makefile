@@ -4,6 +4,8 @@
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
+COVERAGE_SOURCES := $(shell find lib/Analysis lib/Runtime -name "*.cpp")
+RUNTIME_LIB_GLOB = $$(find build-cov/lib -name "libProteusProbeRuntime.*")
 
 submodules: external/mlir-probe/.git
 
@@ -72,24 +74,30 @@ lit-coverage:
 	cmake -S . -B build-cov -G Ninja \
 		-DCMAKE_CXX_FLAGS="-fprofile-instr-generate -fcoverage-mapping -fprofile-continuous" \
 		-DCMAKE_C_FLAGS="-fprofile-instr-generate -fcoverage-mapping -fprofile-continuous" \
-		-DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate -fprofile-continuous"
+		-DCMAKE_EXE_LINKER_FLAGS="-fprofile-instr-generate -fprofile-continuous" \
+		-DCMAKE_SHARED_LINKER_FLAGS="-fprofile-instr-generate -fprofile-continuous"
 	cmake --build build-cov --parallel $(NPROC)
 	rm -rf build-cov/profiles && mkdir -p build-cov/profiles
 	PROTEUS_BUILD_DIR=build-cov \
 		LLVM_PROFILE_FILE="$(CURDIR)/build-cov/profiles/proteus-%p.profraw" \
 		lit -j1 tests
 	llvm-profdata merge -sparse build-cov/profiles/*.profraw -o build-cov/proteus.profdata
-	llvm-cov report build-cov/bin/proteus-opt -instr-profile=build-cov/proteus.profdata \
-		$(shell find lib/Analysis -name "*.cpp")
-	llvm-cov show build-cov/bin/proteus-opt -instr-profile=build-cov/proteus.profdata \
+	llvm-cov report build-cov/bin/proteus-opt \
+		--object $(RUNTIME_LIB_GLOB) \
+		-instr-profile=build-cov/proteus.profdata \
+		$(COVERAGE_SOURCES)
+	llvm-cov show build-cov/bin/proteus-opt \
+		--object $(RUNTIME_LIB_GLOB) \
+		-instr-profile=build-cov/proteus.profdata \
 		-format=html -output-dir=build-cov/coverage-html \
-		$(shell find lib/Analysis -name "*.cpp")
+		$(COVERAGE_SOURCES)
 	@echo "HTML report: build-cov/coverage-html/index.html"
 
 lit-coverage-check: lit-coverage
 	llvm-cov export -summary-only build-cov/bin/proteus-opt \
+		--object $(RUNTIME_LIB_GLOB) \
 		-instr-profile=build-cov/proteus.profdata \
-		$(shell find lib/Analysis -name "*.cpp") \
+		$(COVERAGE_SOURCES) \
 		| python3 scripts/check_coverage_threshold.py $(COVERAGE_MIN)
 
 lit-coverage-clean:
