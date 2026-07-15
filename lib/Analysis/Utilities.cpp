@@ -1,5 +1,6 @@
 #include "Analysis/Utilities.h"
 
+#include "Analysis/SeedPass.h"
 #include "mlir/IR/Operation.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -26,6 +27,41 @@ void proteus::printState(
   }
   os << "======================\n";
   llvm::outs() << os.str();
+}
+
+proteus::SparsityLattice proteus::observeMemref(DynamicMemRefType<float> mref) {
+  llvm::SmallVector<uint64_t> shape(mref.sizes, mref.sizes + mref.rank);
+  SparsityLattice lattice(shape);
+
+  for (int64_t d = 0; d < mref.rank; ++d) {
+    lattice[d].reset();
+  }
+
+  if (mref.rank == 0) {
+    return lattice;
+  }
+
+  llvm::SmallVector<uint64_t> shapeStrides(mref.rank);
+  shapeStrides[mref.rank - 1] = 1;
+  for (int64_t d = mref.rank - 2; d >= 0; --d) {
+    shapeStrides[d] = shapeStrides[d + 1] * shape[d + 1];
+  }
+
+  uint64_t total = shapeStrides[0] * shape[0];
+  for (uint64_t index = 0; index < total; ++index) {
+    uint64_t remaining = index;
+    int64_t offset = mref.offset;
+    for (int64_t d = 0; d < mref.rank; ++d) {
+      uint64_t sliceIdx = remaining / shapeStrides[d];
+      remaining %= shapeStrides[d];
+      offset += static_cast<int64_t>(sliceIdx) * mref.strides[d];
+    }
+    if (mref.data[offset] != 0.0F) {
+      SeedPass::markSlices(index, shapeStrides, lattice);
+    }
+  }
+
+  return lattice;
 }
 
 uint64_t proteus::ZeroCounter::count(const SparsityLattice &lattice) {
