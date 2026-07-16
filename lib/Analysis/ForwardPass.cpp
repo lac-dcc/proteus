@@ -338,6 +338,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
                                    SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
   auto *filter = analysis.getState(op.getOperand(1));
+  auto *outs = analysis.getState(op.getDpsInits()[0]);
   auto *res = analysis.getState(op.getResult(0));
 
   auto filterType =
@@ -347,9 +348,10 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
   llvm::SmallVector<int64_t, 2> dilations(
       op.getDilations().getValues<int64_t>());
 
-  // Sparsity for batches and channels is propagated in a passthrough fashion
-  (*res)[0] &= (*input)[0];
+  // An output channel is sparse when the filter contributes nothing and there's
+  // no bias
   (*res)[1] &= (*filter)[0];
+  (*res)[1] |= (*outs)[1];
 
   // We follow the same logic as we did we the simple conv2d case with the
   // spatial dimensions
@@ -370,6 +372,8 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
       if (allSparse) {
         (*res)[dim + 2].reset(fiber);
       }
+
+      (*res)[dim + 2] |= (*outs)[dim + 2];
     }
   }
 }
@@ -378,6 +382,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
                                    SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
   auto *filter = analysis.getState(op.getOperand(1));
+  auto *outs = analysis.getState(op.getDpsInits()[0]);
   auto *res = analysis.getState(op.getResult(0));
 
   auto filterType =
@@ -387,9 +392,8 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
   llvm::SmallVector<int64_t, 2> dilations(
       op.getDilations().getValues<int64_t>());
 
-  // Sparsity for batches and channels is propagated in a passthrough fashion
-  (*res)[0] &= (*input)[0];
   (*res)[3] &= (*filter)[3];
+  (*res)[3] |= (*outs)[3];
 
   // Same idea as above with the Conv2DNchwFchwOp format, just dimensions are
   // different this time
@@ -409,6 +413,8 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
       if (allSparse) {
         (*res)[dim + 1].reset(fiber);
       }
+
+      (*res)[dim + 1] |= (*outs)[dim + 1];
     }
   }
 }
@@ -417,6 +423,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
                                    SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
   auto *filter = analysis.getState(op.getOperand(1));
+  auto *outs = analysis.getState(op.getDpsInits()[0]);
   auto *res = analysis.getState(op.getResult(0));
 
   auto filterType =
@@ -426,11 +433,12 @@ void proteus::ForwardPass::visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
   llvm::SmallVector<int64_t, 2> dilations(
       op.getDilations().getValues<int64_t>());
 
-  (*res)[0] &= (*input)[0];
-  // Channels here convolve independently and so the channel dimension in the
-  // depthwise case will depend on the sparsity of both the input and the filter
+  // Channels convolve independently here, so a channel's conv contribution
+  // is zero if either its input slice or its filter slice is entirely zero
   (*res)[1] &= (*input)[1];
   (*res)[1] &= (*filter)[0];
+  // The bias still can destroy sparsity at any moment
+  (*res)[1] |= (*outs)[1];
 
   for (uint64_t dim = 0; dim < 2; dim++) {
     int64_t kernelSize = filterType.getDimSize(dim + 1);
@@ -448,6 +456,8 @@ void proteus::ForwardPass::visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
       if (allSparse) {
         (*res)[dim + 2].reset(fiber);
       }
+
+      (*res)[dim + 2] |= (*outs)[dim + 2];
     }
   }
 }
