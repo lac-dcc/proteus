@@ -1,4 +1,5 @@
 #include "Analysis/SparsityPropagationAnalysis.h"
+#include "Transforms/AddProbeCalls.h"
 
 #include "Dialect/Probe/IR/Probe.h"
 #include "Dialect/Probe/Transforms/Passes.h"
@@ -14,6 +15,7 @@ int main(int argc, char **argv) {
     mlir::registerAllDialects(registry);
 
     mlir::PassRegistration<proteus::SparsityPropagationAnalysis>();
+    mlir::PassRegistration<proteus::AddProbeCallsPass>();
     mlir::probe::registerProbePasses();
 
     return mlir::asMainReturnCode(
