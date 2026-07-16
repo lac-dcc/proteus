@@ -86,6 +86,15 @@ breakoff_for_model() {
   python3 "$SCRIPT_DIR/find_sparsity_breakoff.py" "$model" "$attr"
 }
 
+oracle_for_model() {
+  local model="$1" attr="$2"
+  if python3 "$SCRIPT_DIR/check_oracle_soundness.py" "$model" "$attr" >/dev/null 2>&1; then
+    echo "PASS"
+  else
+    echo "FAIL"
+  fi
+}
+
 runtime_for_model() {
   local name="$1"
   awk -F'\t' -v name="$name" '$1 == name {printf "%.4f", $2}' "$RUNTIME_CACHE"
@@ -96,12 +105,12 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s | %10s %12s\n" \
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s\n" \
     "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
-    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Run 1x(s)" "Speedup"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s | %10s %12s\n" \
+    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Oracle" "Run 1x(s)" "Speedup"
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s\n" \
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
-    "-------" "------" "------" "-------" "--------" "--------" "------" "---------" "-------"
+    "-------" "------" "------" "-------" "--------" "--------" "------" "------" "---------" "-------"
 
   for model in "$MLIR_DIR"/*.mlir; do
     name="$(basename "$model" .mlir)"
@@ -131,6 +140,8 @@ for li in "${!LATTICE_NAMES[@]}"; do
     matmul_str="${matmul_pct}"
     [[ "$matmul_str" != "None" ]] && matmul_str="${matmul_str}%"
 
+    oracle_result="$(oracle_for_model "$model" "$lattice_attr")"
+
     run_once="$(runtime_for_model "$name")"
     [[ -z "$run_once" ]] && run_once="n/a"
 
@@ -140,10 +151,10 @@ for li in "${!LATTICE_NAMES[@]}"; do
         'BEGIN{ if (t > 0) printf "%.1fx", r/t; else print "None" }')
     fi
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s | %10s %12s\n" \
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s\n" \
       "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
       "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
-      "$breakoff_str" "$matmul_str" "$run_once" "$speedup"
+      "$breakoff_str" "$matmul_str" "$oracle_result" "$run_once" "$speedup"
   done
   echo
 done
