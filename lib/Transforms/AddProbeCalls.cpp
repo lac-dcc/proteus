@@ -3,6 +3,7 @@
 #include "Dialect/Probe/IR/Probe.h"
 
 #include "mlir/IR/Builders.h"
+#include "mlir/IR/BuiltinTypes.h"
 #include "llvm/ADT/SmallVector.h"
 
 namespace proteus {
@@ -25,6 +26,12 @@ void AddProbeCallsPass::runOnOperation() {
   mlir::OpBuilder builder(&getContext());
   for (auto [opID, op] : llvm::enumerate(worklist)) {
     for (auto [resultID, result] : llvm::enumerate(op->getResults())) {
+      auto tensorType =
+          llvm::dyn_cast<mlir::RankedTensorType>(result.getType());
+      if (!tensorType || !tensorType.getElementType().isF32()) {
+        continue;
+      }
+
       builder.setInsertionPointAfter(op);
       builder.create<mlir::probe::ObserveOp>(
           op->getLoc(), result, static_cast<uint32_t>(opID),
