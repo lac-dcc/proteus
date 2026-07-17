@@ -121,9 +121,10 @@ void proteus::SeedPass::seedConstant(mlir::arith::ConstantOp op,
 
   if (denseAttr.isSplat()) {
     seedSplat(denseAttr, isFloat, lattice.value());
-  } else {
-    seedNonSplat(denseAttr, isFloat, lattice.value());
   }
+  // else {
+  //   seedNonSplat(denseAttr, isFloat, lattice.value());
+  // }
 
   analysis.getState().try_emplace(op.getResult(), lattice.value());
 }
