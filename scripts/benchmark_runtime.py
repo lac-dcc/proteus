@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""Benchmark a single JIT-executed forward pass for each model in mlir_out/,
-so it can be compared against SPA analysis time. Results are cached in
-scripts/.model_runtimes.tsv, read by run_zero_counts.sh's "Run 1x(s)" column.
+"""Benchmark a single JIT-executed forward pass for each model in
+mlir_out_zerobias/, so it can be compared against SPA analysis time. Results
+are cached in scripts/.model_runtimes.tsv, read by run_zero_counts.sh's
+"Run 1x(s)" column.
 
 Usage:
     python3 scripts/benchmark_runtime.py                 # all models
@@ -15,7 +16,7 @@ import sys
 import tempfile
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MLIR_OUT_DIR = os.path.join(ROOT, "mlir_out")
+MLIR_OUT_DIR = os.path.join(ROOT, "mlir_out_zerobias")
 CACHE_FILE = os.path.join(ROOT, "scripts", ".model_runtimes.tsv")
 TIMEOUT = 300
 

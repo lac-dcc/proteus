@@ -3,7 +3,7 @@ set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-MLIR_DIR="$ROOT_DIR/mlir_out"
+MLIR_DIR="$ROOT_DIR/mlir_out_zerobias"
 export PROTEUS_BUILD_DIR="${PROTEUS_BUILD_DIR:-build-release}"
 
 if [[ ! -d "$MLIR_DIR" ]]; then
