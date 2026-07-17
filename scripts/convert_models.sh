@@ -6,6 +6,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 ONNX_DIR="${ONNX_DIR:-$REPO_ROOT/models}"
 OUT_DIR="${OUT_DIR:-$REPO_ROOT/mlir_out}"
+ZEROBIAS_DIR="${ZEROBIAS_DIR:-$REPO_ROOT/mlir_out_zerobias}"
 
 # Models known not to work with torch-mlir
 SKIP="densenet121 densenet161 densenet169 densenet201 vgg13"
@@ -44,5 +45,7 @@ for onnx_file in "$ONNX_DIR"/*.onnx; do
 
     echo "  -> $linalg_out"
 done
+
+python3 "$SCRIPT_DIR/zero_conv_bias.py" "$OUT_DIR" "$ZEROBIAS_DIR"
 
 echo "Done."

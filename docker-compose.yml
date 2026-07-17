@@ -7,5 +7,6 @@ services:
     volumes:
       - ./models:/workspace/models
       - ./mlir_out:/workspace/mlir_out
+      - ./mlir_out_zerobias:/workspace/mlir_out_zerobias
       - ./scripts:/workspace/scripts:ro
     command: bash /workspace/scripts/convert_models.sh

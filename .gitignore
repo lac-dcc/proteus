@@ -59,6 +59,7 @@ Output
 # Generated MLIR models (produced by make convert-models)
 models
 mlir_out
+mlir_out_zerobias
 
 # Python related Files
 __pycache__
