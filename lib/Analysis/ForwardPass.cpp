@@ -191,6 +191,11 @@ void proteus::ForwardPass::visitOp(mlir::linalg::BroadcastOp &op,
   // all the new dimensions that will be added to the tensor
   auto broadcastDims = op.getDimensions();
 
+  // True if the input has any dense bit in any dimension.
+  bool hasDense =
+      llvm::any_of(llvm::seq<std::size_t>(0, input->rank()),
+                   [&](std::size_t d) { return (*input)[d].any(); });
+
   // Broadcast does not allow for the splitting or reshaping of the existing
   // tensor that is being broadcasted, so we will keep a counter of the
   // dimension that we last changed and increment it as we iterate through the
@@ -202,6 +207,11 @@ void proteus::ForwardPass::visitOp(mlir::linalg::BroadcastOp &op,
     // In the case of this dimension not being a part of the dimensions being
     // added by the broadcast continue to next rank
     if (llvm::is_contained(broadcastDims, i)) {
+      // If the input is fully sparse, every replica along this new
+      // dimension is also all-zero, so we can clear it too.
+      if (!hasDense) {
+        (*res)[i].reset();
+      }
       continue;
     }
 
