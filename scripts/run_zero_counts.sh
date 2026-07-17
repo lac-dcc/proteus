@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 export PROTEUS_BUILD_DIR="${PROTEUS_BUILD_DIR:-build-release}"
 BINARY="$ROOT_DIR/$PROTEUS_BUILD_DIR/bin/proteus-opt"
-MLIR_DIR="$ROOT_DIR/mlir_out"
+MLIR_DIR="$ROOT_DIR/mlir_out_zerobias"
 RUNTIME_CACHE="$SCRIPT_DIR/.model_runtimes.tsv"
 
 if [[ ! -x "$BINARY" ]]; then
@@ -47,9 +47,6 @@ LATTICE_ATTRS=(
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, -1, 0, 4294967295>}, {size = 224 : i64, words = array<i64: 0, -1, 0, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -1, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: -1, -1, -1, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}]"
-  # "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 9150747060186627966, -4647998506761461825, -2323999253380730913, 4261148655>}, {size = 224 : i64, words = array<i64: 9150747060186627966, -4647998506761461825, -2323999253380730913, 4261148655>}]"
-  # "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 9005497106850332284, 4502748553425166142, -6971997760142192737, 4193511375>}, {size = 224 : i64, words = array<i64: 9005497106850332284, 4502748553425166142, -6971997760142192737, 4193511375>}]"
-  # "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 8133997386832558192, 4066998693416279096, 2033499346708139548, 3787687694>}, {size = 224 : i64, words = array<i64: 8133997386832558192, 4066998693416279096, 2033499346708139548, 3787687694>}]"
 )
 
 seed_opt() {
