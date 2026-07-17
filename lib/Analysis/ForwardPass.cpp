@@ -227,20 +227,41 @@ void proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
   auto *input = analysis.getState(op.getOperand(0));
   auto *res = analysis.getState(op.getResult());
 
-  // Check all high pads for static padding
+  // Check all pads are static
   for (auto &pad : op.getMixedLowPad()) {
-    // If a padding is not a static, we cannot propagate sparsity
     if (!mlir::getConstantIntValue(pad)) {
       return;
     };
   }
 
-  // Check all high pads for static padding
+  // Check all pads are static
   for (auto &pad : op.getMixedHighPad()) {
-    // If a padding is not a static, we cannot propagate sparsity
     if (!mlir::getConstantIntValue(pad)) {
       return;
     }
+  }
+
+  // Check constant padding
+  auto cstOp =
+      op.getConstantPaddingValue().getDefiningOp<mlir::arith::ConstantOp>();
+  if (!cstOp) {
+    return;
+  }
+
+  // Check whether padding is zero
+  bool isPadZero = false;
+  if (auto floatAttr = mlir::dyn_cast<mlir::FloatAttr>(cstOp.getValue())) {
+    isPadZero = floatAttr.getValue().isZero();
+  } else if (auto intAttr =
+                 mlir::dyn_cast<mlir::IntegerAttr>(cstOp.getValue())) {
+    isPadZero = intAttr.getInt() == 0;
+  }
+
+  // If not we assume no propagation for simplicity
+  // TODO: There should probably be a way where we could propagate something
+  // here
+  if (!isPadZero) {
+    return;
   }
 
   auto pads = op.getMixedLowPad();
