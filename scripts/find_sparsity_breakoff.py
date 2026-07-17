@@ -14,7 +14,12 @@ DIM_PATTERN = re.compile(
 )
 OP_NAME_PATTERN = re.compile(r"=\s*([a-zA-Z_][a-zA-Z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)")
 
-TRIVIALLY_SPARSE_OPS = {"linalg.fill", "tensor.pad", "arith.constant"}
+TRIVIALLY_SPARSE_OPS = {
+    "linalg.fill",
+    "tensor.pad",
+    "arith.constant",
+    "linalg.broadcast",
+}
 
 MATFAMILY_OPS = {
     "linalg.matmul",

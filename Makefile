@@ -61,11 +61,11 @@ dataset-build:
 	docker compose build convert
 
 dataset-convert: dataset-build
-	mkdir -p mlir_out
+	mkdir -p mlir_out mlir_out_zerobias
 	docker compose run --rm convert
 
 dataset-clean:
-	rm -rf mlir_out
+	rm -rf mlir_out mlir_out_zerobias
 
 coverage-check:
 	python3 scripts/check_forward_pass_coverage.py
