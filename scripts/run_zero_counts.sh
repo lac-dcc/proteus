@@ -61,10 +61,13 @@ zeros_for_stage() {
     | "$GREP" -oP 'Grand total: \K[0-9]+'
 }
 
-zeros_for_fill_and_pad() {
+run_forward_stage() {
   local model="$1" attr="$2"
-  "$BINARY" "--spa-analysis=print-zeros=true pass-stage=forward$(seed_opt "$attr")" "$model" 2>&1 >/dev/null \
-    | "$GREP" -A1 -E '\[(linalg\.fill|tensor\.pad)\]' \
+  "$BINARY" "--spa-analysis=print-zeros=true pass-stage=forward$(seed_opt "$attr")" "$model" 2>&1 >/dev/null
+}
+
+fill_and_pad_from_output() {
+  "$GREP" -A1 -E '\[(linalg\.fill|tensor\.pad)\]' \
     | "$GREP" -oP 'total: \K[0-9]+' \
     | awk '{s+=$1} END{print s+0}'
 }
@@ -83,6 +86,11 @@ breakoff_for_model() {
   python3 "$SCRIPT_DIR/find_sparsity_breakoff.py" "$model" "$attr"
 }
 
+matmul_for_model() {
+  local model="$1"
+  python3 "$SCRIPT_DIR/find_first_matmul.py" "$model"
+}
+
 oracle_for_model() {
   local model="$1" attr="$2"
   if python3 "$SCRIPT_DIR/check_oracle_soundness.py" "$model" "$attr" >/dev/null 2>&1; then
@@ -97,6 +105,22 @@ runtime_for_model() {
   awk -F'\t' -v name="$name" '$1 == name {printf "%.4f", $2}' "$RUNTIME_CACHE"
 }
 
+MODELS=("$MLIR_DIR"/*.mlir)
+
+# 1st-matmul position is structural (seed-independent), and single-iteration
+# runtime doesn't depend on the seed lattice either, so compute both once per
+# model here rather than once per (model, seed-lattice) pair below.
+MATMUL_PCTS=()
+RUN_ONCES=()
+for model in "${MODELS[@]}"; do
+  MATMUL_PCTS+=("$(matmul_for_model "$model")")
+
+  name="$(basename "$model" .mlir)"
+  run_once="$(runtime_for_model "$name")"
+  [[ -z "$run_once" ]] && run_once="n/a"
+  RUN_ONCES+=("$run_once")
+done
+
 for li in "${!LATTICE_NAMES[@]}"; do
   lattice_name="${LATTICE_NAMES[$li]}"
   lattice_attr="${LATTICE_ATTRS[$li]}"
@@ -109,13 +133,18 @@ for li in "${!LATTICE_NAMES[@]}"; do
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
     "-------" "------" "------" "-------" "--------" "--------" "------" "------" "---------" "-------"
 
-  for model in "$MLIR_DIR"/*.mlir; do
+  model_index=0
+  for model in "${MODELS[@]}"; do
     name="$(basename "$model" .mlir)"
+    matmul_pct="${MATMUL_PCTS[$model_index]}"
+    run_once="${RUN_ONCES[$model_index]}"
+    model_index=$((model_index + 1))
 
-    after_seed=$(zeros_for_stage     "$model" seed    "$lattice_attr")
-    after_forward=$(zeros_for_stage  "$model" forward "$lattice_attr")
-    after_lateral=$(zeros_for_stage  "$model" lateral "$lattice_attr")
-    fill_pad=$(zeros_for_fill_and_pad "$model" "$lattice_attr")
+    after_seed=$(zeros_for_stage    "$model" seed    "$lattice_attr")
+    forward_out=$(run_forward_stage "$model" "$lattice_attr")
+    after_forward=$(echo "$forward_out" | "$GREP" -oP 'Grand total: \K[0-9]+')
+    fill_pad=$(echo "$forward_out" | fill_and_pad_from_output)
+    after_lateral=$(zeros_for_stage "$model" lateral "$lattice_attr")
 
     backward_out=$(backward_run_with_timing "$model" "$lattice_attr")
     after_backward=$(echo "$backward_out" | "$GREP" -oP 'Grand total: \K[0-9]+')
@@ -132,15 +161,12 @@ for li in "${!LATTICE_NAMES[@]}"; do
     time_total=$(awk -v a="$time_seed" -v b="$time_forward" -v c="$time_lateral" -v d="$time_backward" \
       'BEGIN{printf "%.4f", a+b+c+d}')
 
-    IFS=',' read -r breakoff_pct matmul_pct <<< "$(breakoff_for_model "$model" "$lattice_attr")"
+    breakoff_pct="$(breakoff_for_model "$model" "$lattice_attr")"
     breakoff_str="${breakoff_pct}%"
     matmul_str="${matmul_pct}"
     [[ "$matmul_str" != "None" ]] && matmul_str="${matmul_str}%"
 
     oracle_result="$(oracle_for_model "$model" "$lattice_attr")"
-
-    run_once="$(runtime_for_model "$name")"
-    [[ -z "$run_once" ]] && run_once="n/a"
 
     speedup="None"
     if [[ "$run_once" != "None" ]]; then

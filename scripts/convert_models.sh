@@ -46,6 +46,10 @@ for onnx_file in "$ONNX_DIR"/*.onnx; do
     echo "  -> $linalg_out"
 done
 
-python3 "$SCRIPT_DIR/zero_conv_bias.py" "$OUT_DIR" "$ZEROBIAS_DIR"
+splat_weights_flag=()
+if [[ -n "${SPLAT_WEIGHTS:-}" ]]; then
+    splat_weights_flag=(--splat-weights)
+fi
+python3 "$SCRIPT_DIR/zero_conv_bias.py" "$OUT_DIR" "$ZEROBIAS_DIR" "${splat_weights_flag[@]}"
 
 echo "Done."

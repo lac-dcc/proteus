@@ -4,6 +4,7 @@
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
+SPLAT_WEIGHTS ?=
 COVERAGE_SOURCES := $(shell find lib/Analysis lib/Runtime -name "*.cpp")
 RUNTIME_LIB_GLOB = $$(find build-cov/lib -name "libProteusProbeRuntime.*")
 
@@ -62,7 +63,7 @@ dataset-build:
 
 dataset-convert: dataset-build
 	mkdir -p mlir_out mlir_out_zerobias
-	docker compose run --rm convert
+	docker compose run --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
 
 dataset-clean:
 	rm -rf mlir_out mlir_out_zerobias

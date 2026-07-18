@@ -21,13 +21,6 @@ TRIVIALLY_SPARSE_OPS = {
     "linalg.broadcast",
 }
 
-MATFAMILY_OPS = {
-    "linalg.matmul",
-    "linalg.batch_matmul",
-    "linalg.matvec",
-    "linalg.vecmat",
-}
-
 
 def zero_count(line: str) -> int:
     total = 0
@@ -90,13 +83,13 @@ def main() -> int:
         text=True,
     )
     if result.returncode != 0:
-        print("ERROR,ERROR")
+        print("ERROR")
         return 0
 
     ops = labeled_lattice_lines(result.stdout)
     total = len(ops)
     if total == 0:
-        print("ERROR,ERROR")
+        print("ERROR")
         return 0
 
     last_sparse_idx = next(
@@ -111,16 +104,7 @@ def main() -> int:
         100.0 * (last_sparse_idx + 1) / total if last_sparse_idx is not None else 0.0
     )
 
-    first_matmul_idx = next(
-        (i for i in range(total) if ops[i][0] in MATFAMILY_OPS), None
-    )
-    matmul_pct = (
-        f"{100.0 * (first_matmul_idx + 1) / total:.1f}"
-        if first_matmul_idx is not None
-        else "None"
-    )
-
-    print(f"{breakoff_pct:.1f},{matmul_pct}")
+    print(f"{breakoff_pct:.1f}")
     return 0
 
 

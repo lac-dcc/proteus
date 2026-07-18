@@ -13,6 +13,9 @@ BROADCAST_RE = re.compile(
 CONV_OUTS_RE = re.compile(
     r"linalg\.(?:conv_2d_nchw_fchw|conv_2d_nhwc_hwcf|depthwise_conv_2d_nchw_chw)\b.*?outs\((%[a-zA-Z0-9_]+)"
 )
+WEIGHT_CONST_RE = re.compile(
+    r'^(\s*)(%[a-zA-Z0-9_]+)\s*=\s*arith\.constant\s+dense<"0x[0-9A-Fa-f]+">\s*:\s*(tensor<[0-9x]+xf32>)'
+)
 
 
 def zero_conv_biases(text: str) -> tuple[str, int]:
@@ -61,20 +64,45 @@ def zero_conv_biases(text: str) -> tuple[str, int]:
     return "\n".join(lines) + "\n", changed
 
 
+def splat_weights(text: str) -> tuple[str, int]:
+    lines = text.splitlines()
+    changed = 0
+    for i, line in enumerate(lines):
+        new_line = WEIGHT_CONST_RE.sub(
+            lambda m: f"{m.group(1)}{m.group(2)} = arith.constant dense<1.000000e+00> : {m.group(3)}",
+            line,
+        )
+        if new_line != line:
+            lines[i] = new_line
+            changed += 1
+
+    return "\n".join(lines) + "\n", changed
+
+
 def main() -> int:
-    if len(sys.argv) != 3:
-        print("usage: zero_conv_bias.py <src_dir> <dst_dir>", file=sys.stderr)
+    if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != "--splat-weights"):
+        print(
+            "usage: zero_conv_bias.py <src_dir> <dst_dir> [--splat-weights]",
+            file=sys.stderr,
+        )
         return 1
 
     src_dir = Path(sys.argv[1])
     dst_dir = Path(sys.argv[2])
+    do_splat_weights = len(sys.argv) == 4
     dst_dir.mkdir(parents=True, exist_ok=True)
 
     for f in sorted(src_dir.glob("*.mlir")):
         text = f.read_text()
-        new_text, changed = zero_conv_biases(text)
-        (dst_dir / f.name).write_text(new_text)
-        print(f"{f.name}: zeroed {changed} bias constant(s)")
+        text, changed = zero_conv_biases(text)
+        summary = f"zeroed {changed} bias constant(s)"
+
+        if do_splat_weights:
+            text, weight_changed = splat_weights(text)
+            summary += f", splatted {weight_changed} weight constant(s)"
+
+        (dst_dir / f.name).write_text(text)
+        print(f"{f.name}: {summary}")
 
     return 0
 
