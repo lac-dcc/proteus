@@ -61,10 +61,13 @@ zeros_for_stage() {
     | "$GREP" -oP 'Grand total: \K[0-9]+'
 }
 
-zeros_for_fill_and_pad() {
+run_forward_stage() {
   local model="$1" attr="$2"
-  "$BINARY" "--spa-analysis=print-zeros=true pass-stage=forward$(seed_opt "$attr")" "$model" 2>&1 >/dev/null \
-    | "$GREP" -A1 -E '\[(linalg\.fill|tensor\.pad)\]' \
+  "$BINARY" "--spa-analysis=print-zeros=true pass-stage=forward$(seed_opt "$attr")" "$model" 2>&1 >/dev/null
+}
+
+fill_and_pad_from_output() {
+  "$GREP" -A1 -E '\[(linalg\.fill|tensor\.pad)\]' \
     | "$GREP" -oP 'total: \K[0-9]+' \
     | awk '{s+=$1} END{print s+0}'
 }
@@ -104,11 +107,18 @@ runtime_for_model() {
 
 MODELS=("$MLIR_DIR"/*.mlir)
 
-# 1st-matmul position is structural (seed-independent), so compute it once per
+# 1st-matmul position is structural (seed-independent), and single-iteration
+# runtime doesn't depend on the seed lattice either, so compute both once per
 # model here rather than once per (model, seed-lattice) pair below.
 MATMUL_PCTS=()
+RUN_ONCES=()
 for model in "${MODELS[@]}"; do
   MATMUL_PCTS+=("$(matmul_for_model "$model")")
+
+  name="$(basename "$model" .mlir)"
+  run_once="$(runtime_for_model "$name")"
+  [[ -z "$run_once" ]] && run_once="n/a"
+  RUN_ONCES+=("$run_once")
 done
 
 for li in "${!LATTICE_NAMES[@]}"; do
@@ -127,12 +137,14 @@ for li in "${!LATTICE_NAMES[@]}"; do
   for model in "${MODELS[@]}"; do
     name="$(basename "$model" .mlir)"
     matmul_pct="${MATMUL_PCTS[$model_index]}"
+    run_once="${RUN_ONCES[$model_index]}"
     model_index=$((model_index + 1))
 
-    after_seed=$(zeros_for_stage     "$model" seed    "$lattice_attr")
-    after_forward=$(zeros_for_stage  "$model" forward "$lattice_attr")
-    after_lateral=$(zeros_for_stage  "$model" lateral "$lattice_attr")
-    fill_pad=$(zeros_for_fill_and_pad "$model" "$lattice_attr")
+    after_seed=$(zeros_for_stage    "$model" seed    "$lattice_attr")
+    forward_out=$(run_forward_stage "$model" "$lattice_attr")
+    after_forward=$(echo "$forward_out" | "$GREP" -oP 'Grand total: \K[0-9]+')
+    fill_pad=$(echo "$forward_out" | fill_and_pad_from_output)
+    after_lateral=$(zeros_for_stage "$model" lateral "$lattice_attr")
 
     backward_out=$(backward_run_with_timing "$model" "$lattice_attr")
     after_backward=$(echo "$backward_out" | "$GREP" -oP 'Grand total: \K[0-9]+')
@@ -155,9 +167,6 @@ for li in "${!LATTICE_NAMES[@]}"; do
     [[ "$matmul_str" != "None" ]] && matmul_str="${matmul_str}%"
 
     oracle_result="$(oracle_for_model "$model" "$lattice_attr")"
-
-    run_once="$(runtime_for_model "$name")"
-    [[ -z "$run_once" ]] && run_once="n/a"
 
     speedup="None"
     if [[ "$run_once" != "None" ]]; then
