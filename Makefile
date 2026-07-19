@@ -6,7 +6,7 @@ NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
 SPLAT_WEIGHTS ?=
 LATTICE_FILTER ?=
-COVERAGE_SOURCES := $(shell find lib/Analysis lib/Runtime -name "*.cpp")
+COVERAGE_SOURCES := $(shell find lib/Analysis lib/Runtime lib/Transforms -name "*.cpp")
 RUNTIME_LIB_GLOB = $$(find build-cov/lib -name "libProteusProbeRuntime.*")
 
 submodules: external/mlir-probe/.git
