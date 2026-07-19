@@ -1,10 +1,11 @@
 .PHONY: all config build config-release build-release set-style format test tidy watch clean docs \
-        dataset-build dataset-convert dataset-clean coverage-check \
+        dataset-convert dataset-clean coverage-check \
         lit-coverage lit-coverage-check lit-coverage-clean submodules experiments
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
 SPLAT_WEIGHTS ?=
+LATTICE_FILTER ?=
 COVERAGE_SOURCES := $(shell find lib/Analysis lib/Runtime -name "*.cpp")
 RUNTIME_LIB_GLOB = $$(find build-cov/lib -name "libProteusProbeRuntime.*")
 
@@ -58,18 +59,15 @@ clean:
 docs: build
 	doxygen
 
-dataset-build:
-	docker compose build convert
-
-dataset-convert: dataset-build
+dataset-convert:
 	mkdir -p mlir_out mlir_out_zerobias
-	docker compose run --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
+	docker compose run --build --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
 
 dataset-clean:
 	rm -rf mlir_out mlir_out_zerobias
 
 experiments:
-	docker compose run --rm run
+	docker compose run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) run
 
 coverage-check:
 	python3 scripts/check_forward_pass_coverage.py
