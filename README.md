@@ -21,60 +21,78 @@ The primary goal of Proteus is to identify **tensor slices** (subsets of element
 
 To build Proteus, you need the following dependencies:
 
-* **LLVM/MLIR:** The project is built against LLVM/MLIR.
-* **CMake:** Version 3.15 or higher.
+* **LLVM/MLIR:** The project is built against LLVM/MLIR 22.
+* **CMake:** Version 3.20 or higher.
 * **C++ Compiler:** Supporting C++17 or higher (e.g., GCC 9+, Clang 10+).
 * **Ninja/Make:** Build system generators.
+* **git-lfs:** Fetches the ONNX models from the `external/bennu` submodule.
+* **Docker:** Runs the model conversion and experiment pipelines in containers.
 
 ## Building Proteus
 
-Follow these standard steps to build the project from the root directory:
+The project is built out-of-tree with CMake, and the root `Makefile` wraps the common workflow:
 
 ```bash
-# Create and enter the build directory
-mkdir build
-cd build
-
-# Configure the project with CMake
+# Configure + compile (creates build/)
 # Point to your LLVM/MLIR installation if it's not in the system path
-cmake -G Ninja .. \
-  -DMLIR_DIR=$LLVM_INSTALL_DIR/lib/cmake/mlir \
-  -DLLVM_DIR=$LLVM_INSTALL_DIR/lib/cmake/llvm
-
-# Compile the tools
-ninja
-
+export LLVM_INSTALL_DIR=/path/to/llvm-22
+make build
 ```
+
+This produces `build/bin/proteus-opt`.
 
 ## Running the Tool
 
-You can run the sparsity analysis pass using the `proteus-opt` tool on MLIR input files:
+`proteus-opt` is a drop-in for `mlir-opt` with the sparsity analysis pass added. Sparsity is seeded via a `proteus.lattice` attribute on function arguments, arguments without one default to fully dense. Run it with `--spa-analysis`, adding `lattice-dump=true` to annotate every op's results with its inferred lattice:
 
 ```bash
-./bin/proteus-opt --spa-analysis ../tests/t0.mlir
-
+./build/bin/proteus-opt --spa-analysis='lattice-dump=true' input.mlir
 ```
 
 ### Example Output
 
-When running the analysis on an einsum-based computational graph, Proteus generates an abstract state  for each tensor. The output includes sparsity vectors (bitmaps) for each dimension.
-
-**Input snippet:**
+**Input** (`input.mlir`) — a `linalg.matmul` whose operands are seeded with `proteus.lattice`:
 
 ```mlir
-// Matrix Multiplication: C = A(ik) * B(kj)
-%C = "proteus.einsum"(%A, %B) {indexing_maps = [ik, kj -> ij]} : (tensor<2x2xf32>, tensor<2x2xf32>) -> tensor<2x2xf32>
-
+func.func @matmul_example(
+    %lhs : tensor<4x3xf32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 5>},
+                                                {size = 3 : i64, words = array<i64: 7>}]},
+    %rhs : tensor<3x4xf32> {proteus.lattice = [{size = 3 : i64, words = array<i64: 7>},
+                                                {size = 4 : i64, words = array<i64: 5>}]},
+    %init : tensor<4x4xf32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 0>},
+                                                 {size = 4 : i64, words = array<i64: 0>}]}
+) -> tensor<4x4xf32> {
+  %0 = linalg.matmul ins(%lhs, %rhs : tensor<4x3xf32>, tensor<3x4xf32>) outs(%init : tensor<4x4xf32>) -> tensor<4x4xf32>
+  return %0 : tensor<4x4xf32>
+}
 ```
 
-**Expected Analysis Output:**
+**Actual output** of `proteus-opt --spa-analysis='lattice-dump=true' input.mlir`:
 
-```text
-Sparsity Analysis Results:
-- Tensor %A: alpha(A) = ([1, 0], [1, 1])  // Row 1 is zero
-- Tensor %B: alpha(B) = ([1, 1], [0, 1])  // Column 0 is zero
-- Tensor %C: alpha(C) = ([1, 0], [0, 1])  // Resulting sparsity propagated forward/laterally
-
+```mlir
+module {
+  func.func @matmul_example(%arg0: tensor<4x3xf32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 5>}, {size = 3 : i64, words = array<i64: 7>}]}, %arg1: tensor<3x4xf32> {proteus.lattice = [{size = 3 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 5>}]}, %arg2: tensor<4x4xf32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 0>}, {size = 4 : i64, words = array<i64: 0>}]}) -> tensor<4x4xf32> {
+    %0 = linalg.matmul {proteus.lattice = [{size = 4 : i64, words = array<i64: 5>}, {size = 4 : i64, words = array<i64: 5>}]} ins(%arg0, %arg1 : tensor<4x3xf32>, tensor<3x4xf32>) outs(%arg2 : tensor<4x4xf32>) -> tensor<4x4xf32>
+    return %0 : tensor<4x4xf32>
+  }
+}
 ```
 
-The output `[1, 0]` indicates that the first slice is potentially non-zero, while the second slice is guaranteed to be zero. These bitmaps allow Proteus to optimize the underlying **fiber tree** representations by eliminating zero-valued leaves.
+The reduction dimension is fully dense, so it doesn't constrain the result. The matmul's result rows inherit `%lhs`'s row sparsity (`words = 5`) and its result columns inherit `%rhs`'s column sparsity (`words = 5`).
+
+### Running the Experiments
+
+Beyond single-file analysis, the repo has an end-to-end benchmark suite that runs SPA over real ONNX vision models (ResNet, VGG, etc.) under several fixed seed sparsity patterns, and cross-checks each prediction against a runtime oracle. It requires `git-lfs` and `Docker` (see [Dependencies](#dependencies)):
+
+```bash
+# 1. Fetch the ONNX models (external/bennu submodule) and convert them to MLIR
+#    via a Docker container using torch-mlir. Populates models/, mlir_out/,
+#    and mlir_out_zerobias/.
+make dataset-convert
+
+# 2. Build Proteus in Release mode inside a Docker container and run the
+#    benchmark suite over every model in mlir_out_zerobias/.
+make experiments
+```
+
+Run `make dataset-clean` to remove the converted MLIR models.
