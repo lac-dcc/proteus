@@ -1,0 +1,8 @@
+.git
+build
+build-cov
+build-release
+models
+mlir_out
+mlir_out_zerobias
+docs

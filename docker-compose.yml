@@ -10,3 +10,12 @@ services:
       - ./mlir_out_zerobias:/workspace/mlir_out_zerobias
       - ./scripts:/workspace/scripts:ro
     command: bash /workspace/scripts/convert_models.sh
+
+  run:
+    build:
+      context: .
+      dockerfile: Dockerfile.run
+    volumes:
+      - ./mlir_out_zerobias:/workspace/mlir_out_zerobias
+      - ./scripts:/workspace/scripts
+    command: bash /workspace/scripts/run_zero_counts.sh
