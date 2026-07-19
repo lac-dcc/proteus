@@ -5,7 +5,7 @@ services:
       dockerfile: docker/Dockerfile.convert
     platform: linux/amd64
     volumes:
-      - ../models:/workspace/models
+      - ../external/bennu/models:/workspace/external/bennu/models:ro
       - ../mlir_out:/workspace/mlir_out
       - ../mlir_out_zerobias:/workspace/mlir_out_zerobias
       - ../scripts:/workspace/scripts:ro

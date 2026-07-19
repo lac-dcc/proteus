@@ -2,7 +2,7 @@
 build
 build-cov
 build-release
-models
+external/bennu
 mlir_out
 mlir_out_zerobias
 docs

@@ -6,7 +6,7 @@ NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
 SPLAT_WEIGHTS ?=
 LATTICE_FILTER ?=
-COVERAGE_SOURCES := $(shell find lib/Analysis lib/Runtime -name "*.cpp")
+COVERAGE_SOURCES := $(shell find lib/Analysis lib/Runtime lib/Transforms -name "*.cpp")
 RUNTIME_LIB_GLOB = $$(find build-cov/lib -name "libProteusProbeRuntime.*")
 
 submodules: external/mlir-probe/.git
@@ -21,8 +21,6 @@ models-fetch: external/bennu/.git
 	@command -v git-lfs >/dev/null 2>&1 || { echo "Error: git-lfs is required to fetch models. Install it with: brew install git-lfs" >&2; exit 1; }
 	printf '*.onnx filter=lfs diff=lfs merge=lfs -text\n' > external/bennu/.gitattributes
 	git -C external/bennu lfs pull
-	mkdir -p models
-	cp -f external/bennu/models/*.onnx models/
 
 config: submodules
 	cmake -S . -B build -G Ninja
@@ -74,7 +72,7 @@ dataset-convert: models-fetch
 	docker compose -f docker/docker-compose.yml run --build --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
 
 dataset-clean:
-	rm -rf mlir_out mlir_out_zerobias models
+	rm -rf mlir_out mlir_out_zerobias
 
 experiments:
 	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) run

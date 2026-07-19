@@ -57,7 +57,6 @@ tests/.lit_test_times.txt
 Output
 
 # Generated MLIR models (produced by make convert-models)
-models
 mlir_out
 mlir_out_zerobias
 

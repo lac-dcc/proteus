@@ -65,25 +65,36 @@ def cleared_bits_per_dim(seed_lattice):
     return dims
 
 
+def contiguous_ranges(indices):
+    """Collapse a set of indices into (start, end)-inclusive contiguous runs."""
+    ranges = []
+    for idx in sorted(indices):
+        if ranges and ranges[-1][1] == idx - 1:
+            ranges[-1] = (ranges[-1][0], idx)
+        else:
+            ranges.append((idx, idx))
+    return ranges
+
+
 def build_seeded_input_ops(in_shape, seed_lattice):
     tensor_ty = f"tensor<{in_shape}xf32>"
     shape = [int(s) for s in in_shape.split("x")]
     lines = [f"    %input_0 = arith.constant dense<1.000000e+00> : {tensor_ty}"]
-
     cur = "%input_0"
     counter = 0
     for dim, cleared in enumerate(cleared_bits_per_dim(seed_lattice)):
         if dim >= len(shape):
             break
-        for idx in sorted(cleared):
+        for start, end in contiguous_ranges(cleared):
+            length = end - start + 1
             slice_shape = list(shape)
-            slice_shape[dim] = 1
+            slice_shape[dim] = length
             slice_shape_str = "x".join(str(s) for s in slice_shape)
             offsets = ", ".join(
-                str(idx) if d == dim else "0" for d in range(len(shape))
+                str(start) if d == dim else "0" for d in range(len(shape))
             )
             sizes = ", ".join(
-                "1" if d == dim else str(shape[d]) for d in range(len(shape))
+                str(length) if d == dim else str(shape[d]) for d in range(len(shape))
             )
             strides = ", ".join("1" for _ in shape)
 
