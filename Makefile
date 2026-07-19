@@ -1,6 +1,6 @@
 .PHONY: all config build config-release build-release set-style format test tidy watch clean docs \
         dataset-build dataset-convert dataset-clean coverage-check \
-        lit-coverage lit-coverage-check lit-coverage-clean submodules
+        lit-coverage lit-coverage-check lit-coverage-clean submodules experiments
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
@@ -67,6 +67,9 @@ dataset-convert: dataset-build
 
 dataset-clean:
 	rm -rf mlir_out mlir_out_zerobias
+
+experiments:
+	docker compose run --rm run
 
 coverage-check:
 	python3 scripts/check_forward_pass_coverage.py
