@@ -69,7 +69,7 @@ clean:
 docs: build
 	doxygen
 
-dataset-convert:
+dataset-convert: models-fetch
 	mkdir -p mlir_out mlir_out_zerobias
 	docker compose run --build --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
 
