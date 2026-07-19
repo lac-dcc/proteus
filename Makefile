@@ -71,13 +71,13 @@ docs: build
 
 dataset-convert: models-fetch
 	mkdir -p mlir_out mlir_out_zerobias
-	docker compose run --build --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
+	docker compose -f docker/docker-compose.yml run --build --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
 
 dataset-clean:
-	rm -rf mlir_out mlir_out_zerobias
+	rm -rf mlir_out mlir_out_zerobias models
 
 experiments:
-	docker compose run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) run
+	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) run
 
 coverage-check:
 	python3 scripts/check_forward_pass_coverage.py

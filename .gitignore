@@ -64,3 +64,4 @@ mlir_out_zerobias
 # Python related Files
 __pycache__
 uv.lock
+.DS_Store
