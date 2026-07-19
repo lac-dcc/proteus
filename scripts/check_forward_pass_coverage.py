@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Check which MLIR ops used in mlir_out/ models are handled by ForwardPass.
+Check which MLIR ops used in mlir_out_zerobias/ models are handled by ForwardPass.
 
 Ops are classified by where they appear:
   - depth 2 (inside func body): ForwardPass visits these directly
@@ -105,7 +105,7 @@ def extract_ops_by_nesting(path: Path) -> tuple[set[str], set[str]]:
 
 def main() -> int:
     repo_root = Path(__file__).parent.parent
-    mlir_dir = repo_root / "mlir_out"
+    mlir_dir = repo_root / "mlir_out_zerobias"
 
     model_files = sorted(mlir_dir.glob("*.mlir"))
     if not model_files:
