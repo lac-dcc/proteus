@@ -1,0 +1,22 @@
+name: Docker Experiments Smoke Test
+
+on:
+  workflow_dispatch:
+
+jobs:
+  docker-experiments:
+    name: Docker Experiments Smoke Test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Seed mlir_out_zerobias with a tiny model
+        run: |
+          mkdir -p mlir_out_zerobias
+          cp tests/docker/mlir_out_zerobias_placeholder.mlir mlir_out_zerobias/
+
+      - name: Run experiments in Docker
+        run: make experiments LATTICE_FILTER=banded-64

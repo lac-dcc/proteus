@@ -49,6 +49,19 @@ LATTICE_ATTRS=(
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}]"
 )
 
+if [[ -n "${LATTICE_FILTER:-}" ]]; then
+  FILTERED_NAMES=()
+  FILTERED_ATTRS=()
+  for i in "${!LATTICE_NAMES[@]}"; do
+    if [[ ",${LATTICE_FILTER}," == *",${LATTICE_NAMES[$i]},"* ]]; then
+      FILTERED_NAMES+=("${LATTICE_NAMES[$i]}")
+      FILTERED_ATTRS+=("${LATTICE_ATTRS[$i]}")
+    fi
+  done
+  LATTICE_NAMES=("${FILTERED_NAMES[@]}")
+  LATTICE_ATTRS=("${FILTERED_ATTRS[@]}")
+fi
+
 seed_opt() {
   if [[ -n "$1" ]]; then
     printf " seed-lattice='%s'" "$1"
@@ -67,8 +80,8 @@ run_forward_stage() {
 }
 
 fill_and_pad_from_output() {
-  "$GREP" -A1 -E '\[(linalg\.fill|tensor\.pad)\]' \
-    | "$GREP" -oP 'total: \K[0-9]+' \
+  { "$GREP" -A1 -E '\[(linalg\.fill|tensor\.pad)\]' || true; } \
+    | { "$GREP" -oP 'total: \K[0-9]+' || true; } \
     | awk '{s+=$1} END{print s+0}'
 }
 
@@ -107,9 +120,6 @@ runtime_for_model() {
 
 MODELS=("$MLIR_DIR"/*.mlir)
 
-# 1st-matmul position is structural (seed-independent), and single-iteration
-# runtime doesn't depend on the seed lattice either, so compute both once per
-# model here rather than once per (model, seed-lattice) pair below.
 MATMUL_PCTS=()
 RUN_ONCES=()
 for model in "${MODELS[@]}"; do
