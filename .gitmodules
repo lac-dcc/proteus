@@ -1,3 +1,6 @@
 [submodule "external/mlir-probe"]
 	path = external/mlir-probe
 	url = https://github.com/lac-dcc/mlir-probe.git
+[submodule "external/bennu"]
+	path = external/bennu
+	url = https://github.com/lac-dcc/bennu.git

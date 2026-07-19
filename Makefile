@@ -1,6 +1,6 @@
 .PHONY: all config build config-release build-release set-style format test tidy watch clean docs \
         dataset-convert dataset-clean coverage-check \
-        lit-coverage lit-coverage-check lit-coverage-clean submodules experiments
+        lit-coverage lit-coverage-check lit-coverage-clean submodules experiments models-fetch
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
@@ -12,7 +12,17 @@ RUNTIME_LIB_GLOB = $$(find build-cov/lib -name "libProteusProbeRuntime.*")
 submodules: external/mlir-probe/.git
 
 external/mlir-probe/.git:
-	git submodule update --init --recursive
+	git submodule update --init --recursive -- external/mlir-probe
+
+external/bennu/.git:
+	git submodule update --init -- external/bennu
+
+models-fetch: external/bennu/.git
+	@command -v git-lfs >/dev/null 2>&1 || { echo "Error: git-lfs is required to fetch models. Install it with: brew install git-lfs" >&2; exit 1; }
+	printf '*.onnx filter=lfs diff=lfs merge=lfs -text\n' > external/bennu/.gitattributes
+	git -C external/bennu lfs pull
+	mkdir -p models
+	cp -f external/bennu/models/*.onnx models/
 
 config: submodules
 	cmake -S . -B build -G Ninja
@@ -59,7 +69,7 @@ clean:
 docs: build
 	doxygen
 
-dataset-convert:
+dataset-convert: models-fetch
 	mkdir -p mlir_out mlir_out_zerobias
 	docker compose run --build --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
 
