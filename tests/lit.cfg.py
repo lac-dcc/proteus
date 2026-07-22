@@ -28,3 +28,10 @@ runtime_libs = glob.glob(
     os.path.join(project_root, build_dir, 'lib', 'libProteusProbeRuntime.*'))
 if runtime_libs:
     config.substitutions.append(('%proteus_runtime_lib', runtime_libs[0]))
+
+if llvm_prefix:
+    for name, subst in (('libmlir_runner_utils', '%mlir_runner_utils'),
+                        ('libmlir_c_runner_utils', '%mlir_c_runner_utils')):
+        libs = glob.glob(os.path.join(llvm_prefix, 'lib', name + '.*'))
+        if libs:
+            config.substitutions.append((subst, libs[0]))
