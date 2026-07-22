@@ -9,6 +9,7 @@ set_target_properties(proteus-opt PROPERTIES
 target_link_libraries(proteus-opt PRIVATE
   SparsityPropagationAnalysis
   AddProbeCalls
+  SparsityRewrite
   MLIRProbeDialect
   MLIRProbeTransforms
   MLIROptLib

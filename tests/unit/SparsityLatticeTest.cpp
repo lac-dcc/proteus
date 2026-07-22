@@ -28,12 +28,12 @@ TEST(SparsityLattice, ToAttrWordCounts) {
   auto bv0 = llvm::cast<mlir::DictionaryAttr>(attr[0]);
   auto bv1 = llvm::cast<mlir::DictionaryAttr>(attr[1]);
 
-  auto bv0_words = llvm::cast<mlir::DenseI64ArrayAttr>(bv0.get("words"));
-  auto bv1_words = llvm::cast<mlir::DenseI64ArrayAttr>(bv1.get("words"));
+  auto bv0Words = llvm::cast<mlir::DenseI64ArrayAttr>(bv0.get("words"));
+  auto bv1Words = llvm::cast<mlir::DenseI64ArrayAttr>(bv1.get("words"));
 
-  EXPECT_EQ(bv0_words.size(), 2);
-  EXPECT_EQ(bv1_words.size(), 8);
-  EXPECT_EQ(bv0_words[0], -1);
+  EXPECT_EQ(bv0Words.size(), 2);
+  EXPECT_EQ(bv1Words.size(), 8);
+  EXPECT_EQ(bv0Words[0], -1);
 
   auto size0 = llvm::cast<mlir::IntegerAttr>(bv0.get("size")).getInt();
   auto size1 = llvm::cast<mlir::IntegerAttr>(bv1.get("size")).getInt();
@@ -60,16 +60,16 @@ TEST(SparsityLattice, PrintAsAttrMatchesToAttrPrintedText) {
 
 TEST(SparsityLattice, RankMatchesNumberOfDimensions) {
   proteus::SparsityLattice lat({4, 8, 16});
-  EXPECT_EQ(lat.rank(), 3u);
+  EXPECT_EQ(lat.rank(), 3U);
 }
 
 TEST(SparsityLattice, ShapeMatchesConstructorInput) {
   proteus::SparsityLattice lat({4, 8, 16});
   auto s = lat.shape();
-  ASSERT_EQ(s.size(), 3u);
-  EXPECT_EQ(s[0], 4u);
-  EXPECT_EQ(s[1], 8u);
-  EXPECT_EQ(s[2], 16u);
+  ASSERT_EQ(s.size(), 3U);
+  EXPECT_EQ(s[0], 4U);
+  EXPECT_EQ(s[1], 8U);
+  EXPECT_EQ(s[2], 16U);
 }
 
 TEST(SparsityLattice, EqualityHoldsForIdenticalLattices) {
@@ -207,6 +207,33 @@ TEST(SparsityLattice, FromAttrRoundTripWithSparseBits) {
   auto result = proteus::SparsityLattice::fromAttr(dict);
   ASSERT_TRUE(result.has_value());
   EXPECT_EQ(result.value(), original);
+}
+
+TEST(SparsityLattice, getDensityRangesTest) {
+  llvm::BitVector bv(8, false);
+  auto runs = proteus::SparsityLattice::getDensityRanges(bv);
+  EXPECT_TRUE(runs.empty());
+  bv.set(0);
+  bv.set(1);
+  runs = proteus::SparsityLattice::getDensityRanges(bv);
+  ASSERT_EQ(runs.size(), 1U);
+  EXPECT_EQ(runs[0], std::make_pair(int64_t{0}, int64_t{2}));
+  bv.reset();
+  bv.set(2);
+  bv.set(3);
+  bv.set(4);
+  runs = proteus::SparsityLattice::getDensityRanges(bv);
+  ASSERT_EQ(runs.size(), 1U);
+  EXPECT_EQ(runs[0], std::make_pair(int64_t{2}, int64_t{3}));
+  bv.reset();
+  bv.set(0);
+  bv.set(1);
+  bv.set(4);
+  bv.set(5);
+  runs = proteus::SparsityLattice::getDensityRanges(bv);
+  ASSERT_EQ(runs.size(), 2U);
+  EXPECT_EQ(runs[0], std::make_pair(int64_t{0}, int64_t{2}));
+  EXPECT_EQ(runs[1], std::make_pair(int64_t{4}, int64_t{2}));
 }
 
 TEST(SparsityLattice, FromAttrRoundTripAcrossWordBoundary) {
