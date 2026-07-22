@@ -77,6 +77,40 @@ SparsityLattice SparsityLattice::meet(const SparsityLattice &a,
   return lattice;
 }
 
+llvm::SmallVector<std::pair<int64_t, int64_t>>
+SparsityLattice::getDensityRanges(const llvm::BitVector &bv) {
+  llvm::SmallVector<std::pair<int64_t, int64_t>> ranges;
+  auto size = static_cast<int64_t>(bv.size());
+
+  int64_t start = -1;
+  // Traverse through the bitvector
+  for (int64_t i = 0; i < size; ++i) {
+    // If the bit is set
+    if (bv[i]) {
+      // We should either begin a contiguous range
+      // Or just iterate through all the set bits in the current range
+      if (start == -1) {
+        start = i;
+      }
+      // If the bit is not set and we just got out of a contiguous dense range
+    } else if (start != -1) {
+      // We need to insert the range into the result vector
+      ranges.emplace_back(start, i - start);
+      // And default our start value for the next range
+      start = -1;
+    }
+  }
+
+  // In the case where the last item in the range is
+  // set that constitutes a range at the end of the bitvector so add that as
+  // well
+  if (start != -1) {
+    ranges.emplace_back(start, size - start);
+  }
+
+  return ranges;
+}
+
 llvm::SmallVector<int64_t>
 SparsityLattice::packWords(const llvm::BitVector &bv) {
   llvm::SmallVector<int64_t> words;

@@ -5,6 +5,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <optional>
+#include <utility>
 
 namespace proteus {
 
@@ -112,6 +113,18 @@ public:
    */
   static SparsityLattice meet(const SparsityLattice &a,
                               const SparsityLattice &b);
+
+  /**
+   * @brief Returns every contiguous range of set bits.
+   *
+   * Scans the bitvector for consecutive set bits and arranges them to (offset,
+   * size) pairs
+   *
+   * @param bv The BitVector to scan
+   * @return A vector of (offset, size) pairs, one per dense range.
+   */
+  static llvm::SmallVector<std::pair<int64_t, int64_t>>
+  getDensityRanges(const llvm::BitVector &bv);
 
   /**
    * @brief Serialises the lattice to an MLIR ArrayAttr for IR annotation.
