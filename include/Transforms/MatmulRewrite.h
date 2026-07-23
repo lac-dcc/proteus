@@ -11,7 +11,20 @@ namespace proteus {
  * extracting slices from operands and inserting subdomain matmuls into
  * a zero filled result tensor
  * */
-struct MatmulSparsityRewritePattern
+struct MatmulSparsityLinalgRewritePattern
+    : public mlir::OpRewritePattern<mlir::linalg::MatmulOp> {
+  using OpRewritePattern::OpRewritePattern;
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::linalg::MatmulOp op,
+                  mlir::PatternRewriter &rewriter) const override;
+};
+
+/**
+ * @brief Rewrites a `linalg.matmul` annotated with a `proteus.lattice`
+ * attribute into `scf` operations.
+ * */
+struct MatmulSparsityScfRewritePattern
     : public mlir::OpRewritePattern<mlir::linalg::MatmulOp> {
   using OpRewritePattern::OpRewritePattern;
 

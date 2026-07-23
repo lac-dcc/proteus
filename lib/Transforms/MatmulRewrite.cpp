@@ -10,7 +10,7 @@
 
 namespace proteus {
 
-mlir::LogicalResult MatmulSparsityRewritePattern::matchAndRewrite(
+mlir::LogicalResult MatmulSparsityLinalgRewritePattern::matchAndRewrite(
     mlir::linalg::MatmulOp op, mlir::PatternRewriter &rewriter) const {
   // Grab the lattice from the IR, the user must run the analysis before
   // transforming the IR
@@ -114,5 +114,10 @@ mlir::LogicalResult MatmulSparsityRewritePattern::matchAndRewrite(
   rewriter.replaceOp(op, finalOpValue);
   return mlir::success();
 }
+
+mlir::LogicalResult MatmulSparsityScfRewritePattern::matchAndRewrite(
+    mlir::linalg::MatmulOp op, mlir::PatternRewriter &rewriter) const {
+  return mlir::success();
+};
 
 } // namespace proteus

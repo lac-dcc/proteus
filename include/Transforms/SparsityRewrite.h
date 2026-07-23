@@ -36,6 +36,11 @@ struct SparsityRewritePass : public mlir::OperationPass<mlir::func::FuncOp> {
     pass->copyOptionValuesFrom(this);
     return pass;
   }
+
+  Pass::Option<std::string> target{
+      *this, "target",
+      llvm::cl::desc("Rewrite target between linalg (default) or scf."),
+      llvm::cl::init("linalg")};
 };
 
 std::unique_ptr<mlir::Pass> createSparsityRewritePass();
