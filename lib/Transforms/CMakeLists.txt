@@ -13,6 +13,7 @@ add_mlir_library(AddProbeCalls
 
 add_mlir_library(SparsityRewrite
   SparsityRewrite.cpp
+  MatmulRewrite.cpp
 
   PARTIAL_SOURCES_INTENDED
 
