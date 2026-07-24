@@ -118,6 +118,17 @@ runtime_for_model() {
   awk -F'\t' -v name="$name" '$1 == name {printf "%.4f", $2}' "$RUNTIME_CACHE"
 }
 
+rewrite_correctness_for_model() {
+  local model="$1" attr="$2"
+  local output linalg_result scf_result
+  output="$(python3 "$SCRIPT_DIR/check_rewrite_correctness.py" "$model" "$attr" 2>/dev/null || true)"
+  linalg_result="$(echo "$output" | "$GREP" -oP '^linalg: \K\S+' || true)"
+  scf_result="$(echo "$output" | "$GREP" -oP '^scf: \K\S+' || true)"
+  [[ -z "$linalg_result" ]] && linalg_result="FAIL"
+  [[ -z "$scf_result" ]] && scf_result="FAIL"
+  echo "${linalg_result}|${scf_result}"
+}
+
 MODELS=("$MLIR_DIR"/*.mlir)
 
 MATMUL_PCTS=()
@@ -136,12 +147,14 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s\n" \
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s\n" \
     "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
-    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Oracle" "Run 1x(s)" "Speedup"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s\n" \
+    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Oracle" "Run 1x(s)" "Speedup" \
+    "Oracle (L)" "Oracle (S)"
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s\n" \
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
-    "-------" "------" "------" "-------" "--------" "--------" "------" "------" "---------" "-------"
+    "-------" "------" "------" "-------" "--------" "--------" "------" "------" "---------" "-------" \
+    "----------" "----------"
 
   model_index=0
   for model in "${MODELS[@]}"; do
@@ -184,10 +197,13 @@ for li in "${!LATTICE_NAMES[@]}"; do
         'BEGIN{ if (t > 0) printf "%.1fx", r/t; else print "None" }')
     fi
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s\n" \
+    IFS='|' read -r linalg_correct scf_correct <<< "$(rewrite_correctness_for_model "$model" "$lattice_attr")"
+
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s\n" \
       "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
       "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
-      "$breakoff_str" "$matmul_str" "$oracle_result" "$run_once" "$speedup"
+      "$breakoff_str" "$matmul_str" "$oracle_result" "$run_once" "$speedup" \
+      "$linalg_correct" "$scf_correct"
   done
   echo
 done
