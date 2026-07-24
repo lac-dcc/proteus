@@ -31,6 +31,11 @@ struct MatmulSparsityScfRewritePattern
   mlir::LogicalResult
   matchAndRewrite(mlir::linalg::MatmulOp op,
                   mlir::PatternRewriter &rewriter) const override;
+
+  static mlir::Value
+  checkIterDensity(mlir::OpBuilder &builder, mlir::Location loc,
+                   mlir::Value iter,
+                   llvm::ArrayRef<std::pair<int64_t, int64_t>> ranges);
 };
 
 } // namespace proteus
