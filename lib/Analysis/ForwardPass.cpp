@@ -81,12 +81,16 @@ void proteus::ForwardPass::visitOp(mlir::linalg::MatmulOp &op,
                                    SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op.getOperand(0));
   auto *rhs = analysis.getState(op.getOperand(1));
+  auto *outs = analysis.getState(op.getDpsInits()[0]);
   auto *res = analysis.getState(op.getResult(0));
 
   // We want to keep any sparsity already in the result, this could happen
   // if an attribute is set on a matmul operation
   (*res)[0] &= (*lhs)[0];
   (*res)[1] &= (*rhs)[1];
+  // Accumulator in the op
+  (*res)[0] |= (*outs)[0];
+  (*res)[1] |= (*outs)[1];
 }
 
 void proteus::ForwardPass::visitOp(mlir::linalg::AddOp &op,
@@ -109,6 +113,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp &op,
                                    SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op->getOperand(0));
   auto *rhs = analysis.getState(op->getOperand(1));
+  auto *outs = analysis.getState(op.getDpsInits()[0]);
   auto *res = analysis.getState(op->getResult(0));
 
   if ((*rhs)[0].none()) {
@@ -116,12 +121,16 @@ void proteus::ForwardPass::visitOp(mlir::linalg::MatvecOp &op,
   } else {
     (*res)[0] &= (*lhs)[0];
   }
+
+  // Accumulator in the op
+  (*res)[0] |= (*outs)[0];
 }
 
 void proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp &op,
                                    SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op->getOperand(0));
   auto *rhs = analysis.getState(op->getOperand(1));
+  auto *outs = analysis.getState(op.getDpsInits()[0]);
   auto *res = analysis.getState(op->getResult(0));
 
   if ((*lhs)[0].none()) {
@@ -129,6 +138,9 @@ void proteus::ForwardPass::visitOp(mlir::linalg::VecmatOp &op,
   } else {
     (*res)[0] &= (*rhs)[1];
   }
+
+  // Accumulator in the op
+  (*res)[0] |= (*outs)[0];
 }
 
 void proteus::ForwardPass::visitOp(mlir::linalg::TransposeOp &op,
@@ -146,6 +158,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
                                    SparsityEngine &analysis) {
   auto *lhs = analysis.getState(op->getOperand(0));
   auto *rhs = analysis.getState(op->getOperand(1));
+  auto *outs = analysis.getState(op.getDpsInits()[0]);
   auto *res = analysis.getState(op->getResult(0));
 
   // Transfer sparsity for the batch dimension
@@ -155,6 +168,11 @@ void proteus::ForwardPass::visitOp(mlir::linalg::BatchMatmulOp &op,
   (*res)[1] &= (*lhs)[1];
   // Column slice sparsity in maintained from the rhs
   (*res)[2] &= (*rhs)[2];
+
+  // Accumulator in the op
+  (*res)[0] |= (*outs)[0];
+  (*res)[1] |= (*outs)[1];
+  (*res)[2] |= (*outs)[2];
 }
 
 void proteus::ForwardPass::visitOp(mlir::linalg::FillOp &op,
@@ -335,6 +353,7 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ConcatOp &op,
 void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
                                    SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
+  auto *outs = analysis.getState(op.getDpsInits()[0]);
   auto *res = analysis.getState(op.getResult(0));
 
   auto filterType =
@@ -362,6 +381,9 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DOp &op,
         (*res)[i].reset(fiber);
       }
     }
+
+    // Accumulator in the op
+    (*res)[i] |= (*outs)[i];
   }
 }
 
@@ -379,8 +401,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
   llvm::SmallVector<int64_t, 2> dilations(
       op.getDilations().getValues<int64_t>());
 
-  // An output channel is sparse when the filter contributes nothing and there's
-  // no bias
+  // Accumulator in the op
   (*res)[1] &= (*filter)[0];
   (*res)[1] |= (*outs)[1];
 
@@ -404,6 +425,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNchwFchwOp &op,
         (*res)[dim + 2].reset(fiber);
       }
 
+      // Accumulator in the op
       (*res)[dim + 2] |= (*outs)[dim + 2];
     }
   }
@@ -424,6 +446,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
       op.getDilations().getValues<int64_t>());
 
   (*res)[3] &= (*filter)[3];
+  // Accumulator in the op
   (*res)[3] |= (*outs)[3];
 
   // Same idea as above with the Conv2DNchwFchwOp format, just dimensions are
@@ -445,6 +468,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::Conv2DNhwcHwcfOp &op,
         (*res)[dim + 1].reset(fiber);
       }
 
+      // Accumulator in the op
       (*res)[dim + 1] |= (*outs)[dim + 1];
     }
   }
@@ -468,7 +492,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
   // is zero if either its input slice or its filter slice is entirely zero
   (*res)[1] &= (*input)[1];
   (*res)[1] &= (*filter)[0];
-  // The bias still can destroy sparsity at any moment
+  // Accumulator in the op
   (*res)[1] |= (*outs)[1];
 
   for (uint64_t dim = 0; dim < 2; dim++) {
@@ -488,6 +512,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::DepthwiseConv2DNchwChwOp &op,
         (*res)[dim + 2].reset(fiber);
       }
 
+      // Accumulator in the op
       (*res)[dim + 2] |= (*outs)[dim + 2];
     }
   }
@@ -505,7 +530,6 @@ void proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwMaxOp &op,
   llvm::SmallVector<int64_t, 2> dilations(
       op.getDilations().getValues<int64_t>());
 
-  // Same logic for pooling as with convolutions in 2D
   (*res)[0] &= (*input)[0];
   (*res)[1] &= (*input)[1];
 
