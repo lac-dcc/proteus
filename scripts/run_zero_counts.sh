@@ -27,6 +27,11 @@ if ! command -v python3 &>/dev/null; then
   exit 1
 fi
 
+if ! command -v hyperfine &>/dev/null; then
+  echo "Error: hyperfine is required (used for the rewrite-speedup columns). Install it with: brew install hyperfine (or: cargo install hyperfine)" >&2
+  exit 1
+fi
+
 if [[ ! -f "$RUNTIME_CACHE" ]]; then
   echo "No runtime cache found; benchmarking single-iteration model runtimes first..." >&2
   python3 "$SCRIPT_DIR/benchmark_runtime.py"
@@ -129,6 +134,25 @@ rewrite_correctness_for_model() {
   echo "${linalg_result}|${scf_result}"
 }
 
+rewrite_baseline_for_model() {
+  local name="$1" attr="$2"
+  python3 "$SCRIPT_DIR/benchmark_runtime.py" --seed-lattice "$attr" "$name" 2>/dev/null || true
+}
+
+rewrite_speedup_for_model() {
+  local name="$1" attr="$2" baseline="$3" target="$4"
+  if [[ -z "$baseline" ]]; then
+    echo "n/a"
+    return
+  fi
+  local rewritten
+  if ! rewritten="$(python3 "$SCRIPT_DIR/benchmark_runtime.py" --seed-lattice "$attr" --rewrite "$target" "$name" 2>/dev/null)"; then
+    echo "n/a"
+    return
+  fi
+  awk -v b="$baseline" -v r="$rewritten" 'BEGIN{ if (r > 0) printf "%.2fx", b/r; else print "n/a" }'
+}
+
 MODELS=("$MLIR_DIR"/*.mlir)
 
 MATMUL_PCTS=()
@@ -147,14 +171,14 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s\n" \
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s\n" \
     "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
     "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Oracle" "Run 1x(s)" "Speedup" \
-    "Oracle (L)" "Oracle (S)"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s\n" \
+    "Oracle (L)" "Oracle (S)" "Speedup (L)" "Speedup (S)"
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s\n" \
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
     "-------" "------" "------" "-------" "--------" "--------" "------" "------" "---------" "-------" \
-    "----------" "----------"
+    "----------" "----------" "-----------" "-----------"
 
   model_index=0
   for model in "${MODELS[@]}"; do
@@ -198,12 +222,15 @@ for li in "${!LATTICE_NAMES[@]}"; do
     fi
 
     IFS='|' read -r linalg_correct scf_correct <<< "$(rewrite_correctness_for_model "$model" "$lattice_attr")"
+    rewrite_baseline="$(rewrite_baseline_for_model "$name" "$lattice_attr")"
+    linalg_speedup="$(rewrite_speedup_for_model "$name" "$lattice_attr" "$rewrite_baseline" linalg)"
+    scf_speedup="$(rewrite_speedup_for_model "$name" "$lattice_attr" "$rewrite_baseline" scf)"
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s\n" \
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s\n" \
       "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
       "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
       "$breakoff_str" "$matmul_str" "$oracle_result" "$run_once" "$speedup" \
-      "$linalg_correct" "$scf_correct"
+      "$linalg_correct" "$scf_correct" "$linalg_speedup" "$scf_speedup"
   done
   echo
 done

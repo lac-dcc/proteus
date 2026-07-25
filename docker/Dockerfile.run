@@ -19,6 +19,7 @@ RUN apt-get update -qq && apt-get install -y --no-install-recommends \
         libgtest-dev \
         zlib1g-dev \
         libzstd-dev \
+        hyperfine \
     && rm -rf /var/lib/apt/lists/*
 
 ENV CC=clang-22
