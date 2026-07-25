@@ -2,13 +2,18 @@
 
 #include "Transforms/MatmulRewrite.h"
 
+#include "mlir/IR/PatternMatch.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 
 namespace proteus {
 
 void SparsityRewritePass::runOnOperation() {
   mlir::RewritePatternSet patterns(&getContext());
-  patterns.add<MatmulSparsityRewritePattern>(patterns.getContext());
+  if (target == "linalg") {
+    patterns.add<MatmulSparsityLinalgRewritePattern>(patterns.getContext());
+  } else {
+    patterns.add<MatmulSparsityScfRewritePattern>(patterns.getContext());
+  }
 
   if (mlir::failed(
           mlir::applyPatternsGreedily(getOperation(), std::move(patterns)))) {

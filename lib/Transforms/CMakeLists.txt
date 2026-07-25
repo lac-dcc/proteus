@@ -23,5 +23,6 @@ add_mlir_library(SparsityRewrite
   MLIRFuncDialect
   MLIRRewrite
   MLIRTransformUtils
+  MLIRSCFDialect
   MLIRSupport
 )
