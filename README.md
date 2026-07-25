@@ -84,29 +84,26 @@ The matmul's result rows inherit `%lhs`'s row sparsity (`words = 5`) and its res
 ```mlir
 module {
   func.func @matmul_example(%arg0: tensor<4x3xf32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 5>}, {size = 3 : i64, words = array<i64: 7>}]}, %arg1: tensor<3x4xf32> {proteus.lattice = [{size = 3 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 5>}]}, %arg2: tensor<4x4xf32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 0>}, {size = 4 : i64, words = array<i64: 0>}]}) -> tensor<4x4xf32> {
-    %cst = arith.constant 0.000000e+00 : f32
-    %0 = tensor.empty() : tensor<4x4xf32>
-    %1 = linalg.fill ins(%cst : f32) outs(%0 : tensor<4x4xf32>) -> tensor<4x4xf32>
     %extracted_slice = tensor.extract_slice %arg0[0, 0] [1, 3] [1, 1] : tensor<4x3xf32> to tensor<1x3xf32>
     %extracted_slice_0 = tensor.extract_slice %arg1[0, 0] [3, 1] [1, 1] : tensor<3x4xf32> to tensor<3x1xf32>
-    %extracted_slice_1 = tensor.extract_slice %1[0, 0] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
-    %2 = linalg.matmul ins(%extracted_slice, %extracted_slice_0 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_1 : tensor<1x1xf32>) -> tensor<1x1xf32>
-    %inserted_slice = tensor.insert_slice %2 into %1[0, 0] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
+    %extracted_slice_1 = tensor.extract_slice %arg2[0, 0] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
+    %0 = linalg.matmul ins(%extracted_slice, %extracted_slice_0 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_1 : tensor<1x1xf32>) -> tensor<1x1xf32>
+    %inserted_slice = tensor.insert_slice %0 into %arg2[0, 0] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
     %extracted_slice_2 = tensor.extract_slice %arg0[0, 0] [1, 3] [1, 1] : tensor<4x3xf32> to tensor<1x3xf32>
     %extracted_slice_3 = tensor.extract_slice %arg1[0, 2] [3, 1] [1, 1] : tensor<3x4xf32> to tensor<3x1xf32>
-    %extracted_slice_4 = tensor.extract_slice %1[0, 2] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
-    %3 = linalg.matmul ins(%extracted_slice_2, %extracted_slice_3 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_4 : tensor<1x1xf32>) -> tensor<1x1xf32>
-    %inserted_slice_5 = tensor.insert_slice %3 into %inserted_slice[0, 2] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
+    %extracted_slice_4 = tensor.extract_slice %arg2[0, 2] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
+    %1 = linalg.matmul ins(%extracted_slice_2, %extracted_slice_3 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_4 : tensor<1x1xf32>) -> tensor<1x1xf32>
+    %inserted_slice_5 = tensor.insert_slice %1 into %inserted_slice[0, 2] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
     %extracted_slice_6 = tensor.extract_slice %arg0[2, 0] [1, 3] [1, 1] : tensor<4x3xf32> to tensor<1x3xf32>
     %extracted_slice_7 = tensor.extract_slice %arg1[0, 0] [3, 1] [1, 1] : tensor<3x4xf32> to tensor<3x1xf32>
-    %extracted_slice_8 = tensor.extract_slice %1[2, 0] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
-    %4 = linalg.matmul ins(%extracted_slice_6, %extracted_slice_7 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_8 : tensor<1x1xf32>) -> tensor<1x1xf32>
-    %inserted_slice_9 = tensor.insert_slice %4 into %inserted_slice_5[2, 0] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
+    %extracted_slice_8 = tensor.extract_slice %arg2[2, 0] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
+    %2 = linalg.matmul ins(%extracted_slice_6, %extracted_slice_7 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_8 : tensor<1x1xf32>) -> tensor<1x1xf32>
+    %inserted_slice_9 = tensor.insert_slice %2 into %inserted_slice_5[2, 0] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
     %extracted_slice_10 = tensor.extract_slice %arg0[2, 0] [1, 3] [1, 1] : tensor<4x3xf32> to tensor<1x3xf32>
     %extracted_slice_11 = tensor.extract_slice %arg1[0, 2] [3, 1] [1, 1] : tensor<3x4xf32> to tensor<3x1xf32>
-    %extracted_slice_12 = tensor.extract_slice %1[2, 2] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
-    %5 = linalg.matmul ins(%extracted_slice_10, %extracted_slice_11 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_12 : tensor<1x1xf32>) -> tensor<1x1xf32>
-    %inserted_slice_13 = tensor.insert_slice %5 into %inserted_slice_9[2, 2] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
+    %extracted_slice_12 = tensor.extract_slice %arg2[2, 2] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
+    %3 = linalg.matmul ins(%extracted_slice_10, %extracted_slice_11 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_12 : tensor<1x1xf32>) -> tensor<1x1xf32>
+    %inserted_slice_13 = tensor.insert_slice %3 into %inserted_slice_9[2, 2] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
     return %inserted_slice_13 : tensor<4x4xf32>
   }
 }
