@@ -38,6 +38,7 @@ mlir::LogicalResult Conv2dSparsityRewritePattern::matchAndRewrite(
   // computations
   if ((*lattice)[0].none() || (*lattice)[1].none() || (*lattice)[2].none() ||
       (*lattice)[3].none()) {
+    ++numRewrites;
     rewriter.replaceOp(op, Cinit);
     return mlir::success();
   }
@@ -134,6 +135,7 @@ mlir::LogicalResult Conv2dSparsityRewritePattern::matchAndRewrite(
     }
   }
 
+  ++numRewrites;
   rewriter.replaceOp(op, Cnew);
   return mlir::success();
 }

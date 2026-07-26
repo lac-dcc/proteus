@@ -139,6 +139,16 @@ rewrite_baseline_for_model() {
   python3 "$SCRIPT_DIR/benchmark_runtime.py" --seed-lattice "$attr" "$name" 2>/dev/null || true
 }
 
+rewrite_counts_for_model() {
+  local model="$1" attr="$2"
+  local out matmul_rw conv_rw
+  out="$("$BINARY" "--spa-analysis=lattice-dump=true$(seed_opt "$attr")" \
+    "--spa-rewrite=count-rewrites=true" "$model" 2>&1 >/dev/null || true)"
+  matmul_rw="$(echo "$out" | "$GREP" -oP 'linalg\.matmul=\K[0-9]+' | awk '{s+=$1} END{print s+0}')"
+  conv_rw="$(echo "$out" | "$GREP" -oP 'linalg\.conv_2d_nchw_fchw=\K[0-9]+' | awk '{s+=$1} END{print s+0}')"
+  echo "${matmul_rw}|${conv_rw}"
+}
+
 rewrite_speedup_for_model() {
   local name="$1" attr="$2" baseline="$3" target="$4"
   if [[ -z "$baseline" ]]; then
@@ -171,14 +181,14 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s\n" \
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s | %6s %6s\n" \
     "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
     "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Oracle" "Run 1x(s)" "Speedup" \
-    "Oracle (L)" "Oracle (S)" "Speedup (L)" "Speedup (S)"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s\n" \
+    "Oracle (L)" "Oracle (S)" "Speedup (L)" "Speedup (S)" "MM RW" "Cnv RW"
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s | %6s %6s\n" \
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
     "-------" "------" "------" "-------" "--------" "--------" "------" "------" "---------" "-------" \
-    "----------" "----------" "-----------" "-----------"
+    "----------" "----------" "-----------" "-----------" "------" "------"
 
   model_index=0
   for model in "${MODELS[@]}"; do
@@ -225,12 +235,13 @@ for li in "${!LATTICE_NAMES[@]}"; do
     rewrite_baseline="$(rewrite_baseline_for_model "$name" "$lattice_attr")"
     linalg_speedup="$(rewrite_speedup_for_model "$name" "$lattice_attr" "$rewrite_baseline" linalg)"
     scf_speedup="$(rewrite_speedup_for_model "$name" "$lattice_attr" "$rewrite_baseline" scf)"
+    IFS='|' read -r matmul_rw conv_rw <<< "$(rewrite_counts_for_model "$model" "$lattice_attr")"
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s\n" \
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s | %6s %6s\n" \
       "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
       "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
       "$breakoff_str" "$matmul_str" "$oracle_result" "$run_once" "$speedup" \
-      "$linalg_correct" "$scf_correct" "$linalg_speedup" "$scf_speedup"
+      "$linalg_correct" "$scf_correct" "$linalg_speedup" "$scf_speedup" "$matmul_rw" "$conv_rw"
   done
   echo
 done

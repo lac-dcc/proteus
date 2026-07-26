@@ -38,6 +38,7 @@ mlir::LogicalResult MatmulSparsityLinalgRewritePattern::matchAndRewrite(
   // In the case where one of the bitvectors is all zeros, then we can just
   // replace the entire op with a zero fill instead of doing any computations
   if ((*lattice)[0].none() || (*lattice)[1].none()) {
+    ++numRewrites;
     rewriter.replaceOp(op, Cinit);
     return mlir::success();
   }
@@ -101,6 +102,7 @@ mlir::LogicalResult MatmulSparsityLinalgRewritePattern::matchAndRewrite(
     }
   }
 
+  ++numRewrites;
   rewriter.replaceOp(op, Cnew);
   return mlir::success();
 }
@@ -159,6 +161,7 @@ mlir::LogicalResult MatmulSparsityScfRewritePattern::matchAndRewrite(
   // In the case where one of the bitvectors is all zeros, then we can just
   // replace the entire op with a zero fill instead of doing any computations
   if ((*lattice)[0].none() || (*lattice)[1].none()) {
+    ++numRewrites;
     rewriter.replaceOp(op, Cinit);
     return mlir::success();
   }
@@ -248,6 +251,7 @@ mlir::LogicalResult MatmulSparsityScfRewritePattern::matchAndRewrite(
         mlir::scf::YieldOp::create(b, loc, jLoop.getResult(0));
       });
 
+  ++numRewrites;
   rewriter.replaceOp(op, iLoop.getResult(0));
   return mlir::success();
 }

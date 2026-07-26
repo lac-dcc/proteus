@@ -13,11 +13,16 @@ namespace proteus {
  * */
 struct MatmulSparsityLinalgRewritePattern
     : public mlir::OpRewritePattern<mlir::linalg::MatmulOp> {
-  using OpRewritePattern::OpRewritePattern;
+  MatmulSparsityLinalgRewritePattern(mlir::MLIRContext *context,
+                                     unsigned &numRewrites)
+      : OpRewritePattern(context), numRewrites(numRewrites) {}
 
   mlir::LogicalResult
   matchAndRewrite(mlir::linalg::MatmulOp op,
                   mlir::PatternRewriter &rewriter) const override;
+
+private:
+  unsigned &numRewrites; // NOLINT
 };
 
 /**
@@ -26,7 +31,9 @@ struct MatmulSparsityLinalgRewritePattern
  * */
 struct MatmulSparsityScfRewritePattern
     : public mlir::OpRewritePattern<mlir::linalg::MatmulOp> {
-  using OpRewritePattern::OpRewritePattern;
+  MatmulSparsityScfRewritePattern(mlir::MLIRContext *context,
+                                  unsigned &numRewrites)
+      : OpRewritePattern(context), numRewrites(numRewrites) {}
 
   mlir::LogicalResult
   matchAndRewrite(mlir::linalg::MatmulOp op,
@@ -36,6 +43,9 @@ struct MatmulSparsityScfRewritePattern
   checkIterDensity(mlir::OpBuilder &builder, mlir::Location loc,
                    mlir::Value iter,
                    llvm::ArrayRef<std::pair<int64_t, int64_t>> ranges);
+
+private:
+  unsigned &numRewrites; // NOLINT
 };
 
 } // namespace proteus

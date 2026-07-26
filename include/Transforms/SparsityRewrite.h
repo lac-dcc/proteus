@@ -41,6 +41,15 @@ struct SparsityRewritePass : public mlir::OperationPass<mlir::func::FuncOp> {
       *this, "target",
       llvm::cl::desc("Rewrite target between linalg (default) or scf."),
       llvm::cl::init("linalg")};
+
+  Pass::Option<bool> countRewrites{
+      *this, "count-rewrites",
+      llvm::cl::desc(
+          "Print, per rewrite rule, how many ops it rewrote in this func."),
+      llvm::cl::init(false)};
+
+  unsigned numMatmulRewrites = 0;
+  unsigned numConv2dRewrites = 0;
 };
 
 std::unique_ptr<mlir::Pass> createSparsityRewritePass();
