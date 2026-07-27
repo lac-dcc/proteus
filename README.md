@@ -3,7 +3,6 @@
 </p>
 
 Proteus is an MLIR-based implementation of **[Sparsity Propagation Analysis](https://homepages.dcc.ufmg.br/~fernando/publications/papers/CGO26_Kaio.pdf) (SPA)**. It provides a static analysis framework to conservatively infer sparsity in tensor slices by propagating information across computational graphs. Unlike traditional element-wise analyses, Proteus operates on dimension-indexed bitmaps, making it asymptotically faster than graph execution.
-
 ## Goal of the Analysis
 
 The primary goal of Proteus is to identify **tensor slices** (subsets of elements sharing a fixed subset of indices) that can be safely treated as zero. By recognizing structural sparsity at the compiler level, Proteus enables optimizations that:

@@ -14,6 +14,7 @@ add_mlir_library(AddProbeCalls
 add_mlir_library(SparsityRewrite
   SparsityRewrite.cpp
   MatmulRewrite.cpp
+  Conv2dNchwFchwRewrite.cpp
 
   PARTIAL_SOURCES_INTENDED
 

@@ -1,5 +1,6 @@
 #include "Transforms/SparsityRewrite.h"
 
+#include "Transforms/Conv2dNchwFchwRewrite.h"
 #include "Transforms/MatmulRewrite.h"
 
 #include "mlir/IR/PatternMatch.h"
@@ -10,7 +11,9 @@ namespace proteus {
 void SparsityRewritePass::runOnOperation() {
   mlir::RewritePatternSet patterns(&getContext());
   if (target == "linalg") {
-    patterns.add<MatmulSparsityLinalgRewritePattern>(patterns.getContext());
+    patterns
+        .add<MatmulSparsityLinalgRewritePattern, Conv2dSparsityRewritePattern>(
+            patterns.getContext());
   } else {
     patterns.add<MatmulSparsityScfRewritePattern>(patterns.getContext());
   }
