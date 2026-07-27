@@ -13,11 +13,16 @@ namespace proteus {
  * */
 struct Conv2dSparsityRewritePattern
     : public mlir::OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp> {
-  using OpRewritePattern::OpRewritePattern;
+  Conv2dSparsityRewritePattern(mlir::MLIRContext *context,
+                               unsigned &numRewrites)
+      : OpRewritePattern(context), numRewrites(numRewrites) {}
 
   mlir::LogicalResult
   matchAndRewrite(mlir::linalg::Conv2DNchwFchwOp op,
                   mlir::PatternRewriter &rewriter) const override;
+
+private:
+  unsigned &numRewrites; // NOLINT
 };
 
 } // namespace proteus
