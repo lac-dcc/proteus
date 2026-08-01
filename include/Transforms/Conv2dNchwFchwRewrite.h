@@ -11,10 +11,28 @@ namespace proteus {
  * operations. This is done extracting slices from operands and inserting
  * subdomain convolutions into the accumulator result
  * */
-struct Conv2dSparsityRewritePattern
+struct Conv2dSparsityLinalgRewritePattern
     : public mlir::OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp> {
-  Conv2dSparsityRewritePattern(mlir::MLIRContext *context,
-                               unsigned &numRewrites)
+  Conv2dSparsityLinalgRewritePattern(mlir::MLIRContext *context,
+                                     unsigned &numRewrites)
+      : OpRewritePattern(context), numRewrites(numRewrites) {}
+
+  mlir::LogicalResult
+  matchAndRewrite(mlir::linalg::Conv2DNchwFchwOp op,
+                  mlir::PatternRewriter &rewriter) const override;
+
+private:
+  unsigned &numRewrites; // NOLINT
+};
+
+/**
+ * @brief Rewrites a `linalg.conv_2d_nchw_fchw` annotated with a
+ * `proteus.lattice` attribute into `scf` operations.
+ * */
+struct Conv2dSparsityScfRewritePattern
+    : public mlir::OpRewritePattern<mlir::linalg::Conv2DNchwFchwOp> {
+  Conv2dSparsityScfRewritePattern(mlir::MLIRContext *context,
+                                  unsigned &numRewrites)
       : OpRewritePattern(context), numRewrites(numRewrites) {}
 
   mlir::LogicalResult
