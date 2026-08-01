@@ -14,11 +14,13 @@ void SparsityRewritePass::runOnOperation() {
   if (target == "linalg") {
     patterns.add<MatmulSparsityLinalgRewritePattern>(patterns.getContext(),
                                                      numMatmulRewrites);
-    patterns.add<Conv2dSparsityRewritePattern>(patterns.getContext(),
-                                               numConv2dRewrites);
+    patterns.add<Conv2dSparsityLinalgRewritePattern>(patterns.getContext(),
+                                                     numConv2dRewrites);
   } else {
     patterns.add<MatmulSparsityScfRewritePattern>(patterns.getContext(),
                                                   numMatmulRewrites);
+    patterns.add<Conv2dSparsityScfRewritePattern>(patterns.getContext(),
+                                                  numConv2dRewrites);
   }
 
   if (mlir::failed(
