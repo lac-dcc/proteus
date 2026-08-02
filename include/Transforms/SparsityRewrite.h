@@ -48,6 +48,11 @@ struct SparsityRewritePass : public mlir::OperationPass<mlir::func::FuncOp> {
           "Print, per rewrite rule, how many ops it rewrote in this func."),
       llvm::cl::init(false)};
 
+  Pass::Option<bool> timeRewrite{
+      *this, "time-rewrite",
+      llvm::cl::desc("Print a timing breakdown for the rewrite pass."),
+      llvm::cl::init(false)};
+
   unsigned numMatmulRewrites = 0;
   unsigned numConv2dRewrites = 0;
 };
