@@ -6,7 +6,6 @@ ROOT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 export PROTEUS_BUILD_DIR="${PROTEUS_BUILD_DIR:-build-release}"
 BINARY="$ROOT_DIR/$PROTEUS_BUILD_DIR/bin/proteus-opt"
 MLIR_DIR="$ROOT_DIR/mlir_out_zerobias"
-RUNTIME_CACHE="$SCRIPT_DIR/.model_runtimes.tsv"
 
 if [[ ! -x "$BINARY" ]]; then
   echo "Error: $BINARY not found or not executable. Run 'make $PROTEUS_BUILD_DIR' first (or set PROTEUS_BUILD_DIR=build to use a debug build)." >&2
@@ -25,16 +24,6 @@ fi
 if ! command -v python3 &>/dev/null; then
   echo "Error: python3 is required (used for the breakoff-percentage columns)." >&2
   exit 1
-fi
-
-if ! command -v hyperfine &>/dev/null; then
-  echo "Error: hyperfine is required (used for the rewrite-speedup columns). Install it with: brew install hyperfine (or: cargo install hyperfine)" >&2
-  exit 1
-fi
-
-if [[ ! -f "$RUNTIME_CACHE" ]]; then
-  echo "No runtime cache found; benchmarking single-iteration model runtimes first..." >&2
-  python3 "$SCRIPT_DIR/benchmark_runtime.py"
 fi
 
 LATTICE_NAMES=(
@@ -90,15 +79,6 @@ fill_and_pad_from_output() {
     | awk '{s+=$1} END{print s+0}'
 }
 
-backward_run_with_timing() {
-  local model="$1" attr="$2"
-  "$BINARY" "--spa-analysis=print-zeros=true time-passes=true pass-stage=backward$(seed_opt "$attr")" "$model" 2>&1 >/dev/null
-}
-
-time_for_stage() {
-  echo "$1" | awk -v stage="$2" '$0 ~ ("  " stage "$") {print $1}'
-}
-
 breakoff_for_model() {
   local model="$1" attr="$2"
   python3 "$SCRIPT_DIR/find_sparsity_breakoff.py" "$model" "$attr"
@@ -107,36 +87,6 @@ breakoff_for_model() {
 matmul_for_model() {
   local model="$1"
   python3 "$SCRIPT_DIR/find_first_matmul.py" "$model"
-}
-
-oracle_for_model() {
-  local model="$1" attr="$2"
-  if python3 "$SCRIPT_DIR/check_oracle_soundness.py" "$model" "$attr" >/dev/null 2>&1; then
-    echo "PASS"
-  else
-    echo "FAIL"
-  fi
-}
-
-runtime_for_model() {
-  local name="$1"
-  awk -F'\t' -v name="$name" '$1 == name {printf "%.4f", $2}' "$RUNTIME_CACHE"
-}
-
-rewrite_correctness_for_model() {
-  local model="$1" attr="$2"
-  local output linalg_result scf_result
-  output="$(python3 "$SCRIPT_DIR/check_rewrite_correctness.py" "$model" "$attr" 2>/dev/null || true)"
-  linalg_result="$(echo "$output" | "$GREP" -oP '^linalg: \K\S+' || true)"
-  scf_result="$(echo "$output" | "$GREP" -oP '^scf: \K\S+' || true)"
-  [[ -z "$linalg_result" ]] && linalg_result="FAIL"
-  [[ -z "$scf_result" ]] && scf_result="FAIL"
-  echo "${linalg_result}|${scf_result}"
-}
-
-rewrite_baseline_for_model() {
-  local name="$1" attr="$2"
-  python3 "$SCRIPT_DIR/benchmark_runtime.py" --seed-lattice "$attr" "$name" 2>/dev/null || true
 }
 
 rewrite_counts_for_model() {
@@ -149,31 +99,11 @@ rewrite_counts_for_model() {
   echo "${matmul_rw}|${conv_rw}"
 }
 
-rewrite_speedup_for_model() {
-  local name="$1" attr="$2" baseline="$3" target="$4"
-  if [[ -z "$baseline" ]]; then
-    echo "n/a"
-    return
-  fi
-  local rewritten
-  if ! rewritten="$(python3 "$SCRIPT_DIR/benchmark_runtime.py" --seed-lattice "$attr" --rewrite "$target" "$name" 2>/dev/null)"; then
-    echo "n/a"
-    return
-  fi
-  awk -v b="$baseline" -v r="$rewritten" 'BEGIN{ if (r > 0) printf "%.2fx", b/r; else print "n/a" }'
-}
-
 MODELS=("$MLIR_DIR"/*.mlir)
 
 MATMUL_PCTS=()
-RUN_ONCES=()
 for model in "${MODELS[@]}"; do
   MATMUL_PCTS+=("$(matmul_for_model "$model")")
-
-  name="$(basename "$model" .mlir)"
-  run_once="$(runtime_for_model "$name")"
-  [[ -z "$run_once" ]] && run_once="n/a"
-  RUN_ONCES+=("$run_once")
 done
 
 for li in "${!LATTICE_NAMES[@]}"; do
@@ -181,67 +111,41 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s | %6s %6s\n" \
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s\n" \
     "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
-    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Oracle" "Run 1x(s)" "Speedup" \
-    "Oracle (L)" "Oracle (S)" "Speedup (L)" "Speedup (S)" "MM RW" "Cnv RW"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s | %6s %6s\n" \
+    "Breakoff" "1st MM" "MM RW" "Cnv RW"
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s\n" \
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
-    "-------" "------" "------" "-------" "--------" "--------" "------" "------" "---------" "-------" \
-    "----------" "----------" "-----------" "-----------" "------" "------"
+    "--------" "------" "------" "------"
 
   model_index=0
   for model in "${MODELS[@]}"; do
     name="$(basename "$model" .mlir)"
     matmul_pct="${MATMUL_PCTS[$model_index]}"
-    run_once="${RUN_ONCES[$model_index]}"
     model_index=$((model_index + 1))
 
     after_seed=$(zeros_for_stage    "$model" seed    "$lattice_attr")
     forward_out=$(run_forward_stage "$model" "$lattice_attr")
     after_forward=$(echo "$forward_out" | "$GREP" -oP 'Grand total: \K[0-9]+')
     fill_pad=$(echo "$forward_out" | fill_and_pad_from_output)
-    after_lateral=$(zeros_for_stage "$model" lateral "$lattice_attr")
-
-    backward_out=$(backward_run_with_timing "$model" "$lattice_attr")
-    after_backward=$(echo "$backward_out" | "$GREP" -oP 'Grand total: \K[0-9]+')
+    after_lateral=$(zeros_for_stage "$model" lateral  "$lattice_attr")
+    after_backward=$(zeros_for_stage "$model" backward "$lattice_attr")
 
     delta_seed=$((     after_seed ))
     delta_forward=$((  after_forward  - after_seed ))
     delta_lateral=$((  after_lateral  - after_forward ))
     delta_backward=$(( after_backward - after_lateral ))
 
-    time_seed=$(time_for_stage     "$backward_out" "Seed")
-    time_forward=$(time_for_stage  "$backward_out" "Forward")
-    time_lateral=$(time_for_stage  "$backward_out" "Lateral")
-    time_backward=$(time_for_stage "$backward_out" "Backward")
-    time_total=$(awk -v a="$time_seed" -v b="$time_forward" -v c="$time_lateral" -v d="$time_backward" \
-      'BEGIN{printf "%.4f", a+b+c+d}')
-
     breakoff_pct="$(breakoff_for_model "$model" "$lattice_attr")"
     breakoff_str="${breakoff_pct}%"
     matmul_str="${matmul_pct}"
     [[ "$matmul_str" != "None" ]] && matmul_str="${matmul_str}%"
 
-    oracle_result="$(oracle_for_model "$model" "$lattice_attr")"
-
-    speedup="None"
-    if [[ "$run_once" != "None" ]]; then
-      speedup=$(awk -v r="$run_once" -v t="$time_total" \
-        'BEGIN{ if (t > 0) printf "%.1fx", r/t; else print "None" }')
-    fi
-
-    IFS='|' read -r linalg_correct scf_correct <<< "$(rewrite_correctness_for_model "$model" "$lattice_attr")"
-    rewrite_baseline="$(rewrite_baseline_for_model "$name" "$lattice_attr")"
-    linalg_speedup="$(rewrite_speedup_for_model "$name" "$lattice_attr" "$rewrite_baseline" linalg)"
-    scf_speedup="$(rewrite_speedup_for_model "$name" "$lattice_attr" "$rewrite_baseline" scf)"
     IFS='|' read -r matmul_rw conv_rw <<< "$(rewrite_counts_for_model "$model" "$lattice_attr")"
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s | %6s %6s\n" \
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s\n" \
       "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
-      "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
-      "$breakoff_str" "$matmul_str" "$oracle_result" "$run_once" "$speedup" \
-      "$linalg_correct" "$scf_correct" "$linalg_speedup" "$scf_speedup" "$matmul_rw" "$conv_rw"
+      "$breakoff_str" "$matmul_str" "$matmul_rw" "$conv_rw"
   done
   echo
 done

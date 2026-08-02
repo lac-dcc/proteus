@@ -7,6 +7,7 @@ Usage:
 """
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -21,6 +22,11 @@ PROTEUS_OPT = os.path.join(ROOT, BUILD_DIR, "bin", "proteus-opt")
 TIMEOUT = 300
 
 REWRITE_TARGETS = ("linalg", "scf")
+
+REWRITE_COUNTS_RE = re.compile(
+    r"spa-rewrite counts for @\w+: linalg\.matmul=(\d+), "
+    r"linalg\.conv_2d_nchw_fchw=(\d+)"
+)
 
 PRINT_WRAPPER_TEMPLATE = """  func.func private @printMemrefF32(memref<*xf32>)
 
@@ -40,23 +46,29 @@ def printed_output(model, seed_lattice, rewrite=None):
     text = open(model).read().rstrip()
     match = bench.ENTRY_FUNC_RE.search(text)
     if not match:
-        return None, "could not find entry function signature"
+        return None, "could not find entry function signature", None
     func_name, in_shape, out_shape = match.groups()
 
+    rewrite_count = None
     if rewrite:
         rewritten = subprocess.run(
             [
                 PROTEUS_OPT,
                 f"--spa-analysis={oracle.spa_opts(seed_lattice)}",
-                f"--spa-rewrite=target={rewrite}",
+                f"--spa-rewrite=target={rewrite} count-rewrites=true",
                 model,
             ],
             capture_output=True,
             text=True,
         )
         if rewritten.returncode != 0:
-            return None, rewritten.stderr
+            return None, rewritten.stderr, None
         text = rewritten.stdout.rstrip()
+
+        counts_match = REWRITE_COUNTS_RE.search(rewritten.stderr)
+        rewrite_count = (
+            sum(int(g) for g in counts_match.groups()) if counts_match else 0
+        )
 
     input_ops, input_value = oracle.build_seeded_input_ops(in_shape, seed_lattice)
     wrapped = text[: text.rfind("}")] + PRINT_WRAPPER_TEMPLATE.format(
@@ -89,7 +101,7 @@ def printed_output(model, seed_lattice, rewrite=None):
             text=True,
         )
         if opt.returncode != 0:
-            return None, opt.stderr
+            return None, opt.stderr, None
 
         try:
             run = subprocess.run(
@@ -100,20 +112,21 @@ def printed_output(model, seed_lattice, rewrite=None):
                     "-e",
                     "main",
                     "--entry-point-result=void",
+                    "--O3",
                 ],
                 capture_output=True,
                 text=True,
                 timeout=TIMEOUT,
             )
         except subprocess.TimeoutExpired:
-            return None, "mlir-runner timed out"
+            return None, "mlir-runner timed out", None
         if run.returncode != 0:
-            return None, run.stderr
+            return None, run.stderr, None
 
     filtered = "\n".join(
         line for line in run.stdout.splitlines() if "base@" not in line
     )
-    return filtered, None
+    return filtered, None, rewrite_count
 
 
 def main():
@@ -126,19 +139,25 @@ def main():
     model = sys.argv[1]
     seed_lattice = sys.argv[2] if len(sys.argv) == 3 else ""
 
-    baseline, err = printed_output(model, seed_lattice)
+    baseline, err, _ = printed_output(model, seed_lattice)
     if err:
         print(f"error computing baseline output: {err}", file=sys.stderr)
         return 1
 
     ok = True
     for target in REWRITE_TARGETS:
-        rewritten, err = printed_output(model, seed_lattice, rewrite=target)
+        rewritten, err, rewrite_count = printed_output(model, seed_lattice, rewrite=target)
         if err:
             print(f"{target}: FAIL")
             print(f"{target}: error computing rewritten output: {err}", file=sys.stderr)
             ok = False
             continue
+        if rewrite_count == 0:
+            print(
+                f"{target}: warning: rewrite pattern rewrote 0 ops "
+                "(comparison did not exercise sparsity-skipping logic)",
+                file=sys.stderr,
+            )
         if rewritten == baseline:
             print(f"{target}: PASS")
         else:
