@@ -109,29 +109,9 @@ matmul_for_model() {
   python3 "$SCRIPT_DIR/find_first_matmul.py" "$model"
 }
 
-oracle_for_model() {
-  local model="$1" attr="$2"
-  if python3 "$SCRIPT_DIR/check_oracle_soundness.py" "$model" "$attr" >/dev/null 2>&1; then
-    echo "PASS"
-  else
-    echo "FAIL"
-  fi
-}
-
 runtime_for_model() {
   local name="$1"
   awk -F'\t' -v name="$name" '$1 == name {printf "%.4f", $2}' "$RUNTIME_CACHE"
-}
-
-rewrite_correctness_for_model() {
-  local model="$1" attr="$2"
-  local output linalg_result scf_result
-  output="$(python3 "$SCRIPT_DIR/check_rewrite_correctness.py" "$model" "$attr" 2>/dev/null || true)"
-  linalg_result="$(echo "$output" | "$GREP" -oP '^linalg: \K\S+' || true)"
-  scf_result="$(echo "$output" | "$GREP" -oP '^scf: \K\S+' || true)"
-  [[ -z "$linalg_result" ]] && linalg_result="FAIL"
-  [[ -z "$scf_result" ]] && scf_result="FAIL"
-  echo "${linalg_result}|${scf_result}"
 }
 
 rewrite_baseline_for_model() {
@@ -181,14 +161,14 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s | %6s %6s\n" \
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s | %10s %12s | %11s %11s | %6s %6s\n" \
     "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
-    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Oracle" "Run 1x(s)" "Speedup" \
-    "Oracle (L)" "Oracle (S)" "Speedup (L)" "Speedup (S)" "MM RW" "Cnv RW"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s | %6s %6s\n" \
+    "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" "Breakoff" "1st MM" "Run 1x(s)" "Speedup" \
+    "Speedup (L)" "Speedup (S)" "MM RW" "Cnv RW"
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s | %10s %12s | %11s %11s | %6s %6s\n" \
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
-    "-------" "------" "------" "-------" "--------" "--------" "------" "------" "---------" "-------" \
-    "----------" "----------" "-----------" "-----------" "------" "------"
+    "-------" "------" "------" "-------" "--------" "--------" "------" "---------" "-------" \
+    "-----------" "-----------" "------" "------"
 
   model_index=0
   for model in "${MODELS[@]}"; do
@@ -223,25 +203,22 @@ for li in "${!LATTICE_NAMES[@]}"; do
     matmul_str="${matmul_pct}"
     [[ "$matmul_str" != "None" ]] && matmul_str="${matmul_str}%"
 
-    oracle_result="$(oracle_for_model "$model" "$lattice_attr")"
-
     speedup="None"
     if [[ "$run_once" != "None" ]]; then
       speedup=$(awk -v r="$run_once" -v t="$time_total" \
         'BEGIN{ if (t > 0) printf "%.1fx", r/t; else print "None" }')
     fi
 
-    IFS='|' read -r linalg_correct scf_correct <<< "$(rewrite_correctness_for_model "$model" "$lattice_attr")"
     rewrite_baseline="$(rewrite_baseline_for_model "$name" "$lattice_attr")"
     linalg_speedup="$(rewrite_speedup_for_model "$name" "$lattice_attr" "$rewrite_baseline" linalg)"
     scf_speedup="$(rewrite_speedup_for_model "$name" "$lattice_attr" "$rewrite_baseline" scf)"
     IFS='|' read -r matmul_rw conv_rw <<< "$(rewrite_counts_for_model "$model" "$lattice_attr")"
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s %8s | %10s %12s | %10s %10s %11s %11s | %6s %6s\n" \
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %8s %8s %8s %8s %8s | %9s %9s | %10s %12s | %11s %11s | %6s %6s\n" \
       "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
       "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
-      "$breakoff_str" "$matmul_str" "$oracle_result" "$run_once" "$speedup" \
-      "$linalg_correct" "$scf_correct" "$linalg_speedup" "$scf_speedup" "$matmul_rw" "$conv_rw"
+      "$breakoff_str" "$matmul_str" "$run_once" "$speedup" \
+      "$linalg_speedup" "$scf_speedup" "$matmul_rw" "$conv_rw"
   done
   echo
 done

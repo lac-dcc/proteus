@@ -14,7 +14,7 @@ BUILD_DIR = os.environ.get("PROTEUS_BUILD_DIR", "build-release")
 PROTEUS_OPT = os.path.join(ROOT, BUILD_DIR, "bin", "proteus-opt")
 TIMEOUT = 300
 
-WORDS_RE = re.compile(r"words = array<i64:\s*(-?\d+)\s*>")
+WORDS_RE = re.compile(r"words = array<i64:([^>]*)>")
 OPID_LINE_RE = re.compile(r"opID=(\d+)\s+resultID=\d+\s+runtime_lattice=(.*)")
 DIM_RE = re.compile(
     r"\{size\s*=\s*(\d+)\s*:\s*i64,\s*words\s*=\s*array<i64:([^>]*)>\}"
@@ -47,6 +47,15 @@ CALL_WRAPPER_TEMPLATE = """  func.func @main() {{
   }}
 }}
 """
+
+
+def parse_words(line):
+    """Extract every packed i64 word from all `words = array<i64: ...>`
+    groups on a line, in order (a dimension >64 elements wide packs into
+    more than one word per group)."""
+    return [
+        int(w) for group in WORDS_RE.findall(line) for w in group.split(",") if w.strip()
+    ]
 
 
 def cleared_bits_per_dim(seed_lattice):
@@ -152,7 +161,7 @@ def predicted_lattices(model, seed_lattice):
             continue
         if "proteus.lattice" not in line:
             continue
-        predicted[op_id] = [int(w) for w in WORDS_RE.findall(line)]
+        predicted[op_id] = parse_words(line)
         op_id += 1
     return predicted, None
 
@@ -225,6 +234,7 @@ def actual_lattices(model, seed_lattice):
                     "-e",
                     "main",
                     "--entry-point-result=void",
+                    "--O3",
                 ],
                 capture_output=True,
                 text=True,
@@ -241,7 +251,7 @@ def actual_lattices(model, seed_lattice):
         if not match:
             continue
         op_id = int(match.group(1))
-        actual[op_id] = [int(w) for w in WORDS_RE.findall(match.group(2))]
+        actual[op_id] = parse_words(match.group(2))
     return actual, None
 
 
@@ -265,6 +275,10 @@ def main():
         print(f"error computing actual lattices: {err}", file=sys.stderr)
         return 1
 
+    if not actual:
+        print("error: no ops were observed at runtime", file=sys.stderr)
+        return 1
+
     ok = True
     for op_id, actual_words in actual.items():
         predicted_words = predicted.get(op_id)
@@ -280,6 +294,12 @@ def main():
             )
             ok = False
             continue
+
+        # TODO
+
+        print(predicted_words)
+        print(actual_words)
+
         for i, (predicted_word, actual_word) in enumerate(
             zip(predicted_words, actual_words)
         ):
