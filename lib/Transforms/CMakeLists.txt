@@ -17,6 +17,7 @@ add_mlir_library(SparsityRewrite
   Conv2dNchwFchwRewrite.cpp
   DepthConv2dRewrite.cpp
   PoolSumNchwRewrite.cpp
+  PoolMaxNchwRewrite.cpp
   Utilities.cpp
 
   PARTIAL_SOURCES_INTENDED

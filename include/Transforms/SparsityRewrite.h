@@ -57,6 +57,7 @@ struct SparsityRewritePass : public mlir::OperationPass<mlir::func::FuncOp> {
   unsigned numConv2dRewrites = 0;
   unsigned numDepthConv2dRewrites = 0;
   unsigned numPoolSumRewrites = 0;
+  unsigned numPoolMaxRewrites = 0;
 };
 
 std::unique_ptr<mlir::Pass> createSparsityRewritePass();
