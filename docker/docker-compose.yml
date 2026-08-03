@@ -19,3 +19,21 @@ services:
       - ../mlir_out_zerobias:/workspace/mlir_out_zerobias
       - ../scripts:/workspace/scripts
     command: bash /workspace/scripts/run_zero_counts.sh
+
+  timings:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.run
+    volumes:
+      - ../mlir_out_zerobias:/workspace/mlir_out_zerobias
+      - ../scripts:/workspace/scripts
+    command: bash /workspace/scripts/run_timings.sh
+
+  oracles:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.run
+    volumes:
+      - ../mlir_out_zerobias:/workspace/mlir_out_zerobias
+      - ../scripts:/workspace/scripts
+    command: bash /workspace/scripts/run_correctness_oracles.sh

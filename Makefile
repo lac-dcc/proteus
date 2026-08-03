@@ -1,6 +1,6 @@
 .PHONY: all config build config-release build-release set-style format test tidy watch clean docs \
         dataset-convert dataset-clean coverage-check \
-        lit-coverage lit-coverage-check lit-coverage-clean submodules experiments models-fetch
+        lit-coverage lit-coverage-check lit-coverage-clean submodules zero-counts timings oracles models-fetch
 
 NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
@@ -74,8 +74,14 @@ dataset-convert: models-fetch
 dataset-clean:
 	rm -rf mlir_out mlir_out_zerobias
 
-experiments:
+zero-counts:
 	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) run
+
+timings:
+	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) timings
+
+oracles:
+	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) oracles
 
 coverage-check:
 	python3 scripts/check_forward_pass_coverage.py
