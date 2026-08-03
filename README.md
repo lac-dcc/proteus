@@ -79,39 +79,59 @@ module {
 
 The matmul's result rows inherit `%lhs`'s row sparsity (`words = 5`) and its result columns inherit `%rhs`'s column sparsity (`words = 5`).
 
-**Actual output** of `proteus-opt --spa-analysis='lattice-dump=true' --spa-rewrite input.mlir`:
+**Actual output** of `proteus-opt --spa-analysis='lattice-dump=true' --spa-rewrite="target=scf" input.mlir`:
 
 ```mlir
 module {
   func.func @matmul_example(%arg0: tensor<4x3xf32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 5>}, {size = 3 : i64, words = array<i64: 7>}]}, %arg1: tensor<3x4xf32> {proteus.lattice = [{size = 3 : i64, words = array<i64: 7>}, {size = 4 : i64, words = array<i64: 5>}]}, %arg2: tensor<4x4xf32> {proteus.lattice = [{size = 4 : i64, words = array<i64: 0>}, {size = 4 : i64, words = array<i64: 0>}]}) -> tensor<4x4xf32> {
-    %extracted_slice = tensor.extract_slice %arg0[0, 0] [1, 3] [1, 1] : tensor<4x3xf32> to tensor<1x3xf32>
-    %extracted_slice_0 = tensor.extract_slice %arg1[0, 0] [3, 1] [1, 1] : tensor<3x4xf32> to tensor<3x1xf32>
-    %extracted_slice_1 = tensor.extract_slice %arg2[0, 0] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
-    %0 = linalg.matmul ins(%extracted_slice, %extracted_slice_0 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_1 : tensor<1x1xf32>) -> tensor<1x1xf32>
-    %inserted_slice = tensor.insert_slice %0 into %arg2[0, 0] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
-    %extracted_slice_2 = tensor.extract_slice %arg0[0, 0] [1, 3] [1, 1] : tensor<4x3xf32> to tensor<1x3xf32>
-    %extracted_slice_3 = tensor.extract_slice %arg1[0, 2] [3, 1] [1, 1] : tensor<3x4xf32> to tensor<3x1xf32>
-    %extracted_slice_4 = tensor.extract_slice %arg2[0, 2] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
-    %1 = linalg.matmul ins(%extracted_slice_2, %extracted_slice_3 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_4 : tensor<1x1xf32>) -> tensor<1x1xf32>
-    %inserted_slice_5 = tensor.insert_slice %1 into %inserted_slice[0, 2] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
-    %extracted_slice_6 = tensor.extract_slice %arg0[2, 0] [1, 3] [1, 1] : tensor<4x3xf32> to tensor<1x3xf32>
-    %extracted_slice_7 = tensor.extract_slice %arg1[0, 0] [3, 1] [1, 1] : tensor<3x4xf32> to tensor<3x1xf32>
-    %extracted_slice_8 = tensor.extract_slice %arg2[2, 0] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
-    %2 = linalg.matmul ins(%extracted_slice_6, %extracted_slice_7 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_8 : tensor<1x1xf32>) -> tensor<1x1xf32>
-    %inserted_slice_9 = tensor.insert_slice %2 into %inserted_slice_5[2, 0] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
-    %extracted_slice_10 = tensor.extract_slice %arg0[2, 0] [1, 3] [1, 1] : tensor<4x3xf32> to tensor<1x3xf32>
-    %extracted_slice_11 = tensor.extract_slice %arg1[0, 2] [3, 1] [1, 1] : tensor<3x4xf32> to tensor<3x1xf32>
-    %extracted_slice_12 = tensor.extract_slice %arg2[2, 2] [1, 1] [1, 1] : tensor<4x4xf32> to tensor<1x1xf32>
-    %3 = linalg.matmul ins(%extracted_slice_10, %extracted_slice_11 : tensor<1x3xf32>, tensor<3x1xf32>) outs(%extracted_slice_12 : tensor<1x1xf32>) -> tensor<1x1xf32>
-    %inserted_slice_13 = tensor.insert_slice %3 into %inserted_slice_9[2, 2] [1, 1] [1, 1] : tensor<1x1xf32> into tensor<4x4xf32>
-    return %inserted_slice_13 : tensor<4x4xf32>
+    %c2 = arith.constant 2 : index
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %c4 = arith.constant 4 : index
+    %c3 = arith.constant 3 : index
+    %0 = scf.for %arg3 = %c0 to %c4 step %c1 iter_args(%arg4 = %arg2) -> (tensor<4x4xf32>) {
+      %1 = arith.cmpi sge, %arg3, %c0 : index
+      %2 = arith.cmpi slt, %arg3, %c1 : index
+      %3 = arith.andi %1, %2 : i1
+      %4 = arith.cmpi sge, %arg3, %c2 : index
+      %5 = arith.cmpi slt, %arg3, %c3 : index
+      %6 = arith.andi %4, %5 : i1
+      %7 = arith.ori %3, %6 : i1
+      %8 = scf.for %arg5 = %c0 to %c4 step %c1 iter_args(%arg6 = %arg4) -> (tensor<4x4xf32>) {
+        %9 = arith.cmpi sge, %arg5, %c0 : index
+        %10 = arith.cmpi slt, %arg5, %c1 : index
+        %11 = arith.andi %9, %10 : i1
+        %12 = arith.cmpi sge, %arg5, %c2 : index
+        %13 = arith.cmpi slt, %arg5, %c3 : index
+        %14 = arith.andi %12, %13 : i1
+        %15 = arith.ori %11, %14 : i1
+        %16 = arith.andi %7, %15 : i1
+        %17 = scf.if %16 -> (tensor<4x4xf32>) {
+          %extracted = tensor.extract %arg6[%arg3, %arg5] : tensor<4x4xf32>
+          %18 = scf.for %arg7 = %c0 to %c3 step %c1 iter_args(%arg8 = %extracted) -> (f32) {
+            %extracted_0 = tensor.extract %arg0[%arg3, %arg7] : tensor<4x3xf32>
+            %extracted_1 = tensor.extract %arg1[%arg7, %arg5] : tensor<3x4xf32>
+            %19 = arith.mulf %extracted_0, %extracted_1 : f32
+            %20 = arith.addf %arg8, %19 : f32
+            scf.yield %20 : f32
+          }
+          %inserted = tensor.insert %18 into %arg6[%arg3, %arg5] : tensor<4x4xf32>
+          scf.yield %inserted : tensor<4x4xf32>
+        } else {
+          scf.yield %arg6 : tensor<4x4xf32>
+        }
+        scf.yield %17 : tensor<4x4xf32>
+      }
+      scf.yield %8 : tensor<4x4xf32>
+    }
+    return %0 : tensor<4x4xf32>
   }
 }
 ```
 
 ### Running the Experiments
 
-Beyond single-file analysis, the repo has an end-to-end benchmark suite that runs SPA over real ONNX vision models (ResNet, VGG, etc.) under several fixed seed sparsity patterns, and cross-checks each prediction against a runtime oracle. It requires `git-lfs` and `Docker` (see [Dependencies](#dependencies)):
+Beyond single-file analysis, the repo has an end-to-end benchmark suite that runs SPA over real ONNX vision models (ResNet, VGG, etc.) under several fixed seed sparsity patterns. It requires `git-lfs` and `Docker` (see [Dependencies](#dependencies)):
 
 ```bash
 # 1. Fetch the ONNX models (external/bennu submodule) and convert them to MLIR
@@ -120,8 +140,29 @@ Beyond single-file analysis, the repo has an end-to-end benchmark suite that run
 make dataset-convert
 
 # 2. Build Proteus in Release mode inside a Docker container and run the
-#    benchmark suite over every model in mlir_out_zerobias/.
-make experiments
+#    zero count script over every model in mlir_out_zerobias/ across different lattices.
+make zero-counts
+
+# 3. Build Proteus in Release mode inside a Docker container and run the
+#    timings benchmark over every model in mlir_out_zerobias/ across different lattices.
+make timings
+
+# 4. Build Proteus in Release mode inside a Docker container and run the
+#    oracles checker script over every model in mlir_out_zerobias/ across different lattices.
+make oracles
+```
+
+To splat the constants within the dataset for faster conversions as well as lexing and parsing, you can use the `SPLAT_WEIGHTS` variable like so:
+
+```bash
+make dataset-convert SPLAT_WEIGHTS=1
+```
+
+To filter a benchmark on specific lattices you can use the `LATTICE_FILTER` variable like so:
+
+```bash
+# make <benchmark-option> LATTICE_FILTER=banded-64,all-sparse
+make oracles LATTICE_FILTER=banded-64,all-sparse
 ```
 
 Run `make dataset-clean` to remove the converted MLIR models.
