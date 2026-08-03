@@ -3,6 +3,7 @@
 #include "Transforms/Conv2dNchwFchwRewrite.h"
 #include "Transforms/DepthConv2dRewrite.h"
 #include "Transforms/MatmulRewrite.h"
+#include "Transforms/PoolMaxNchwRewrite.h"
 #include "Transforms/PoolSumNchwRewrite.h"
 
 #include "mlir/IR/PatternMatch.h"
@@ -28,6 +29,8 @@ void SparsityRewritePass::runOnOperation() {
                                                        numDepthConv2dRewrites);
     patterns.add<PoolSumNchwSparsityScfRewritePattern>(patterns.getContext(),
                                                        numPoolSumRewrites);
+    patterns.add<PoolMaxNchwSparsityScfRewritePattern>(patterns.getContext(),
+                                                       numPoolMaxRewrites);
   }
 
   if (timeRewrite) {
@@ -49,7 +52,8 @@ void SparsityRewritePass::runOnOperation() {
                  << ", linalg.conv_2d_nchw_fchw=" << numConv2dRewrites
                  << ", linalg.depthwise_conv_2d_nchw_chw="
                  << numDepthConv2dRewrites
-                 << ", linalg.pooling_nchw_sum=" << numPoolSumRewrites << "\n";
+                 << ", linalg.pooling_nchw_sum=" << numPoolSumRewrites
+                 << ", linalg.pooling_nchw_max=" << numPoolMaxRewrites << "\n";
   }
 }
 
