@@ -26,6 +26,9 @@ if ! command -v python3 &>/dev/null; then
   exit 1
 fi
 
+TIMING_WARMUP="${TIMING_WARMUP:-3}"
+TIMING_RUNS="${TIMING_RUNS:-10}"
+
 LATTICE_NAMES=(
   "banded-64"
   "banded-128"
@@ -62,40 +65,74 @@ seed_opt() {
   fi
 }
 
-backward_run_with_timing() {
-  local model="$1" attr="$2"
-  "$BINARY" "--spa-analysis=print-zeros=true time-passes=true pass-stage=backward$(seed_opt "$attr")" "$model" 2>&1 >/dev/null
-}
-
 time_for_stage() {
   echo "$1" | awk -v stage="$2" '$0 ~ ("  " stage "$") {print $1}'
 }
 
-# Wall time (seconds) the --spa-rewrite pass itself took to apply its
-# patterns (compile-time cost of the rewrite, not the rewritten model's
-# runtime), via --spa-rewrite=...time-rewrite=true.
+mean_std() {
+  if [[ $# -eq 0 ]]; then
+    printf "n/a\tn/a"
+    return
+  fi
+  printf '%s\n' "$@" | awk '{a[NR-1]=$1} END{
+    n=NR; s=0; for(i=0;i<n;i++) s+=a[i]; m=s/n;
+    if (n>1) { ss=0; for(i=0;i<n;i++) ss+=(a[i]-m)^2; sd=sqrt(ss/(n-1)) } else { sd=0 }
+    printf "%.4f\t%.4f", m, sd
+  }'
+}
+
+analysis_timings_for_model() {
+  local model="$1" attr="$2"
+  local seeds=() fwds=() lats=() backs=() totals=()
+  local i out ts tf tl tb tt
+  for ((i = 0; i < TIMING_WARMUP + TIMING_RUNS; i++)); do
+    out="$("$BINARY" "--spa-analysis=time-passes=true pass-stage=backward$(seed_opt "$attr")" "$model" -o /dev/null 2>&1)"
+    if ((i >= TIMING_WARMUP)); then
+      ts=$(time_for_stage "$out" "Seed")
+      tf=$(time_for_stage "$out" "Forward")
+      tl=$(time_for_stage "$out" "Lateral")
+      tb=$(time_for_stage "$out" "Backward")
+      tt=$(awk -v a="$ts" -v b="$tf" -v c="$tl" -v d="$tb" 'BEGIN{printf "%.4f", a+b+c+d}')
+      seeds+=("$ts")
+      fwds+=("$tf")
+      lats+=("$tl")
+      backs+=("$tb")
+      totals+=("$tt")
+    fi
+  done
+  printf "%s\t%s\t%s\t%s\t%s\n" \
+    "$(mean_std "${seeds[@]}")" "$(mean_std "${fwds[@]}")" \
+    "$(mean_std "${lats[@]}")" "$(mean_std "${backs[@]}")" "$(mean_std "${totals[@]}")"
+}
+
 rewrite_pass_time_for_model() {
   local model="$1" attr="$2" target="$3"
-  local out t
-  out="$("$BINARY" "--spa-analysis=lattice-dump=true$(seed_opt "$attr")" \
-    "--spa-rewrite=target=$target time-rewrite=true" "$model" 2>&1 >/dev/null || true)"
-  t="$(time_for_stage "$out" "Rewrite")"
-  [[ -z "$t" ]] && t="n/a"
-  echo "$t"
+  local times=()
+  local i out t
+  for ((i = 0; i < TIMING_WARMUP + TIMING_RUNS; i++)); do
+    out="$("$BINARY" "--spa-analysis=lattice-dump=true$(seed_opt "$attr")" \
+      "--spa-rewrite=target=$target time-rewrite=true" "$model" -o /dev/null 2>&1)"
+    if ((i >= TIMING_WARMUP)); then
+      times+=("$(time_for_stage "$out" "Rewrite")")
+    fi
+  done
+  mean_std "${times[@]}"
 }
 
 timed_runs_for_model() {
   local name="$1" attr="$2" rewrite="${3:-}"
   if [[ -n "$rewrite" ]]; then
-    python3 "$SCRIPT_DIR/benchmark_runtime.py" --seed-lattice "$attr" --rewrite "$rewrite" "$name" 2>/dev/null || true
+    python3 "$SCRIPT_DIR/benchmark_runtime.py" --seed-lattice "$attr" --rewrite "$rewrite" \
+      --warmup "$TIMING_WARMUP" --runs "$TIMING_RUNS" "$name" 2>/dev/null || true
   else
-    python3 "$SCRIPT_DIR/benchmark_runtime.py" --seed-lattice "$attr" "$name" 2>/dev/null || true
+    python3 "$SCRIPT_DIR/benchmark_runtime.py" --seed-lattice "$attr" \
+      --warmup "$TIMING_WARMUP" --runs "$TIMING_RUNS" "$name" 2>/dev/null || true
   fi
 }
 
 fmt_mean_std() {
   local mean="$1" std="$2"
-  if [[ -z "$mean" ]]; then
+  if [[ -z "$mean" || "$mean" == "n/a" ]]; then
     echo "n/a"
     return
   fi
@@ -104,7 +141,7 @@ fmt_mean_std() {
 
 speedup_for_means() {
   local base="$1" val="$2"
-  if [[ -z "$base" || -z "$val" ]]; then
+  if [[ -z "$base" || "$base" == "n/a" || -z "$val" || "$val" == "n/a" ]]; then
     echo "n/a"
     return
   fi
@@ -118,43 +155,46 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s | %8s %8s %8s %8s %8s | %9s %9s | %8s | %17s %17s %17s | %11s %11s\n" \
+  printf "%-25s | %17s %17s %17s %17s %17s | %17s %17s | %8s | %17s %17s %17s | %11s %11s\n" \
     "Model" "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" \
     "RwLin(s)" "RwScf(s)" \
     "Speedup" "Base(s)" "Linalg(s)" "Scf(s)" "Speedup (L)" "Speedup (S)"
-  printf "%-25s | %8s %8s %8s %8s %8s | %9s %9s | %8s | %17s %17s %17s | %11s %11s\n" \
-    "-----" "-------" "------" "------" "-------" "--------" \
-    "--------" "--------" \
+  printf "%-25s | %17s %17s %17s %17s %17s | %17s %17s | %8s | %17s %17s %17s | %11s %11s\n" \
+    "-----" "-----------------" "-----------------" "-----------------" "-----------------" "-----------------" \
+    "-----------------" "-----------------" \
     "-------" "-----------------" "-----------------" "-----------------" "-----------" "-----------"
 
   for model in "${MODELS[@]}"; do
     name="$(basename "$model" .mlir)"
 
-    backward_out=$(backward_run_with_timing "$model" "$lattice_attr")
-    time_seed=$(time_for_stage     "$backward_out" "Seed")
-    time_forward=$(time_for_stage  "$backward_out" "Forward")
-    time_lateral=$(time_for_stage  "$backward_out" "Lateral")
-    time_backward=$(time_for_stage "$backward_out" "Backward")
-    time_total=$(awk -v a="$time_seed" -v b="$time_forward" -v c="$time_lateral" -v d="$time_backward" \
-      'BEGIN{printf "%.4f", a+b+c+d}')
+    IFS=$'\t' read -r seed_mean seed_std fwd_mean fwd_std lat_mean lat_std back_mean back_std total_mean total_std \
+      <<< "$(analysis_timings_for_model "$model" "$lattice_attr")"
 
-    rw_linalg_time="$(rewrite_pass_time_for_model "$model" "$lattice_attr" linalg)"
-    rw_scf_time="$(rewrite_pass_time_for_model "$model" "$lattice_attr" scf)"
+    IFS=$'\t' read -r rwlin_mean rwlin_std <<< "$(rewrite_pass_time_for_model "$model" "$lattice_attr" linalg)"
+    IFS=$'\t' read -r rwscf_mean rwscf_std <<< "$(rewrite_pass_time_for_model "$model" "$lattice_attr" scf)"
 
     IFS=$'\t' read -r base_mean base_std <<< "$(timed_runs_for_model "$name" "$lattice_attr")"
     IFS=$'\t' read -r linalg_mean linalg_std <<< "$(timed_runs_for_model "$name" "$lattice_attr" linalg)"
     IFS=$'\t' read -r scf_mean scf_std <<< "$(timed_runs_for_model "$name" "$lattice_attr" scf)"
 
+    seed_str="$(fmt_mean_std "$seed_mean" "$seed_std")"
+    fwd_str="$(fmt_mean_std "$fwd_mean" "$fwd_std")"
+    lat_str="$(fmt_mean_std "$lat_mean" "$lat_std")"
+    back_str="$(fmt_mean_std "$back_mean" "$back_std")"
+    total_str="$(fmt_mean_std "$total_mean" "$total_std")"
+    rwlin_str="$(fmt_mean_std "$rwlin_mean" "$rwlin_std")"
+    rwscf_str="$(fmt_mean_std "$rwscf_mean" "$rwscf_std")"
     base_str="$(fmt_mean_std "$base_mean" "$base_std")"
     linalg_str="$(fmt_mean_std "$linalg_mean" "$linalg_std")"
     scf_str="$(fmt_mean_std "$scf_mean" "$scf_std")"
-    speedup="$(speedup_for_means "$base_mean" "$time_total")"
+
+    speedup="$(speedup_for_means "$base_mean" "$total_mean")"
     linalg_speedup="$(speedup_for_means "$base_mean" "$linalg_mean")"
     scf_speedup="$(speedup_for_means "$base_mean" "$scf_mean")"
 
-    printf "%-25s | %8s %8s %8s %8s %8s | %9s %9s | %8s | %18s %18s %18s | %11s %11s\n" \
-      "$name" "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
-      "$rw_linalg_time" "$rw_scf_time" \
+    printf "%-25s | %18s %18s %18s %18s %18s | %18s %18s | %8s | %18s %18s %18s | %11s %11s\n" \
+      "$name" "$seed_str" "$fwd_str" "$lat_str" "$back_str" "$total_str" \
+      "$rwlin_str" "$rwscf_str" \
       "$speedup" "$base_str" "$linalg_str" "$scf_str" "$linalg_speedup" "$scf_speedup"
   done
   echo
