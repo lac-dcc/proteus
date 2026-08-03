@@ -4,6 +4,7 @@
 #include "Transforms/MatmulRewrite.h"
 
 #include "mlir/IR/PatternMatch.h"
+#include "mlir/Support/Timing.h"
 #include "mlir/Transforms/GreedyPatternRewriteDriver.h"
 #include "llvm/Support/raw_ostream.h"
 
@@ -21,6 +22,14 @@ void SparsityRewritePass::runOnOperation() {
                                                   numMatmulRewrites);
     patterns.add<Conv2dSparsityScfRewritePattern>(patterns.getContext(),
                                                   numConv2dRewrites);
+  }
+
+  if (timeRewrite) {
+    std::unique_ptr<mlir::DefaultTimingManager> tm;
+    tm = std::make_unique<mlir::DefaultTimingManager>();
+    tm->setEnabled(true);
+    mlir::TimingScope rootScope = tm ? tm->getRootScope() : mlir::TimingScope();
+    auto scope = rootScope.nest("Rewrite");
   }
 
   if (mlir::failed(

@@ -71,6 +71,19 @@ time_for_stage() {
   echo "$1" | awk -v stage="$2" '$0 ~ ("  " stage "$") {print $1}'
 }
 
+# Wall time (seconds) the --spa-rewrite pass itself took to apply its
+# patterns (compile-time cost of the rewrite, not the rewritten model's
+# runtime), via --spa-rewrite=...time-rewrite=true.
+rewrite_pass_time_for_model() {
+  local model="$1" attr="$2" target="$3"
+  local out t
+  out="$("$BINARY" "--spa-analysis=lattice-dump=true$(seed_opt "$attr")" \
+    "--spa-rewrite=target=$target time-rewrite=true" "$model" 2>&1 >/dev/null || true)"
+  t="$(time_for_stage "$out" "Rewrite")"
+  [[ -z "$t" ]] && t="n/a"
+  echo "$t"
+}
+
 timed_runs_for_model() {
   local name="$1" attr="$2" rewrite="${3:-}"
   if [[ -n "$rewrite" ]]; then
@@ -105,11 +118,13 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s | %8s %8s %8s %8s %8s | %8s | %17s %17s %17s | %11s %11s\n" \
+  printf "%-25s | %8s %8s %8s %8s %8s | %9s %9s | %8s | %17s %17s %17s | %11s %11s\n" \
     "Model" "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" \
+    "RwLin(s)" "RwScf(s)" \
     "Speedup" "Base(s)" "Linalg(s)" "Scf(s)" "Speedup (L)" "Speedup (S)"
-  printf "%-25s | %8s %8s %8s %8s %8s | %8s | %17s %17s %17s | %11s %11s\n" \
+  printf "%-25s | %8s %8s %8s %8s %8s | %9s %9s | %8s | %17s %17s %17s | %11s %11s\n" \
     "-----" "-------" "------" "------" "-------" "--------" \
+    "--------" "--------" \
     "-------" "-----------------" "-----------------" "-----------------" "-----------" "-----------"
 
   for model in "${MODELS[@]}"; do
@@ -123,6 +138,9 @@ for li in "${!LATTICE_NAMES[@]}"; do
     time_total=$(awk -v a="$time_seed" -v b="$time_forward" -v c="$time_lateral" -v d="$time_backward" \
       'BEGIN{printf "%.4f", a+b+c+d}')
 
+    rw_linalg_time="$(rewrite_pass_time_for_model "$model" "$lattice_attr" linalg)"
+    rw_scf_time="$(rewrite_pass_time_for_model "$model" "$lattice_attr" scf)"
+
     IFS=$'\t' read -r base_mean base_std <<< "$(timed_runs_for_model "$name" "$lattice_attr")"
     IFS=$'\t' read -r linalg_mean linalg_std <<< "$(timed_runs_for_model "$name" "$lattice_attr" linalg)"
     IFS=$'\t' read -r scf_mean scf_std <<< "$(timed_runs_for_model "$name" "$lattice_attr" scf)"
@@ -134,8 +152,9 @@ for li in "${!LATTICE_NAMES[@]}"; do
     linalg_speedup="$(speedup_for_means "$base_mean" "$linalg_mean")"
     scf_speedup="$(speedup_for_means "$base_mean" "$scf_mean")"
 
-    printf "%-25s | %8s %8s %8s %8s %8s | %8s | %18s %18s %18s | %11s %11s\n" \
+    printf "%-25s | %8s %8s %8s %8s %8s | %9s %9s | %8s | %18s %18s %18s | %11s %11s\n" \
       "$name" "$time_seed" "$time_forward" "$time_lateral" "$time_backward" "$time_total" \
+      "$rw_linalg_time" "$rw_scf_time" \
       "$speedup" "$base_str" "$linalg_str" "$scf_str" "$linalg_speedup" "$scf_speedup"
   done
   echo
