@@ -91,12 +91,13 @@ matmul_for_model() {
 
 rewrite_counts_for_model() {
   local model="$1" attr="$2"
-  local out matmul_rw conv_rw
+  local out matmul_rw conv_rw depth_rw
   out="$("$BINARY" "--spa-analysis=lattice-dump=true$(seed_opt "$attr")" \
-    "--spa-rewrite=count-rewrites=true" "$model" 2>&1 >/dev/null || true)"
+    "--spa-rewrite=count-rewrites=true target=scf" "$model" 2>&1 >/dev/null || true)"
   matmul_rw="$(echo "$out" | "$GREP" -oP 'linalg\.matmul=\K[0-9]+' | awk '{s+=$1} END{print s+0}')"
   conv_rw="$(echo "$out" | "$GREP" -oP 'linalg\.conv_2d_nchw_fchw=\K[0-9]+' | awk '{s+=$1} END{print s+0}')"
-  echo "${matmul_rw}|${conv_rw}"
+  depth_rw="$(echo "$out" | "$GREP" -oP 'linalg\.depthwise_conv_2d_nchw_chw=\K[0-9]+' | awk '{s+=$1} END{print s+0}')"
+  echo "${matmul_rw}|${conv_rw}|${depth_rw}"
 }
 
 MODELS=("$MLIR_DIR"/*.mlir)
@@ -111,12 +112,12 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s\n" \
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s\n" \
     "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
-    "Breakoff" "1st MM" "MM RW" "Cnv RW"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s\n" \
+    "Breakoff" "1st MM" "MM RW" "Cnv RW" "DW RW"
+  printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s\n" \
     "-----" "----" "--------" "-------" "-------" "--------" "-----" \
-    "--------" "------" "------" "------"
+    "--------" "------" "------" "------" "------"
 
   model_index=0
   for model in "${MODELS[@]}"; do
@@ -141,11 +142,11 @@ for li in "${!LATTICE_NAMES[@]}"; do
     matmul_str="${matmul_pct}"
     [[ "$matmul_str" != "None" ]] && matmul_str="${matmul_str}%"
 
-    IFS='|' read -r matmul_rw conv_rw <<< "$(rewrite_counts_for_model "$model" "$lattice_attr")"
+    IFS='|' read -r matmul_rw conv_rw depth_rw <<< "$(rewrite_counts_for_model "$model" "$lattice_attr")"
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s\n" \
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s\n" \
       "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
-      "$breakoff_str" "$matmul_str" "$matmul_rw" "$conv_rw"
+      "$breakoff_str" "$matmul_str" "$matmul_rw" "$conv_rw" "$depth_rw"
   done
   echo
 done
