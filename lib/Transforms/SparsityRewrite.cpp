@@ -1,6 +1,7 @@
 #include "Transforms/SparsityRewrite.h"
 
 #include "Transforms/Conv2dNchwFchwRewrite.h"
+#include "Transforms/DepthConv2dRewrite.h"
 #include "Transforms/MatmulRewrite.h"
 
 #include "mlir/IR/PatternMatch.h"
@@ -22,6 +23,8 @@ void SparsityRewritePass::runOnOperation() {
                                                   numMatmulRewrites);
     patterns.add<Conv2dSparsityScfRewritePattern>(patterns.getContext(),
                                                   numConv2dRewrites);
+    patterns.add<DepthConv2dSparsityScfRewritePattern>(patterns.getContext(),
+                                                       numDepthConv2dRewrites);
   }
 
   if (timeRewrite) {
@@ -40,7 +43,9 @@ void SparsityRewritePass::runOnOperation() {
   if (countRewrites) {
     llvm::errs() << "spa-rewrite counts for @" << getOperation().getSymName()
                  << ": linalg.matmul=" << numMatmulRewrites
-                 << ", linalg.conv_2d_nchw_fchw=" << numConv2dRewrites << "\n";
+                 << ", linalg.conv_2d_nchw_fchw=" << numConv2dRewrites
+                 << ", linalg.depthwise_conv_2d_nchw_chw="
+                 << numDepthConv2dRewrites << "\n";
   }
 }
 
