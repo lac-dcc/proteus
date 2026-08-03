@@ -15,6 +15,7 @@ add_mlir_library(SparsityRewrite
   SparsityRewrite.cpp
   MatmulRewrite.cpp
   Conv2dNchwFchwRewrite.cpp
+  DepthConv2dRewrite.cpp
   Utilities.cpp
 
   PARTIAL_SOURCES_INTENDED
