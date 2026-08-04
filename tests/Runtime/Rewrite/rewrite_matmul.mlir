@@ -17,7 +17,7 @@
 // RUN:     --shared-libs=%mlir_runner_utils,%mlir_c_runner_utils \
 // RUN: | grep -v "base@" > %t.baseline
 
-// RUN: proteus-opt --spa-rewrite %s \
+// RUN: proteus-opt --spa-rewrite="target=linalg" %s \
 // RUN: | proteus-opt \
 // RUN:   --pass-pipeline="builtin.module(one-shot-bufferize{bufferize-function-boundaries}, \
 // RUN:                    convert-linalg-to-loops, \
