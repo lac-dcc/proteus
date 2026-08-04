@@ -30,8 +30,8 @@ LogicalResult Conv2dSparsityLinalgRewritePattern::matchAndRewrite(
   auto lattice = SparsityLattice::fromAttr(latticeAttr);
 
   // In the case where everything is dense there's no sparsity to optimize with
-  if ((*lattice)[0].all() && (*lattice)[1].all() && (*lattice)[2].all() &&
-      (*lattice)[3].all()) {
+  if (lattice[0].all() && lattice[1].all() && lattice[2].all() &&
+      lattice[3].all()) {
     return mlir::failure();
   }
 
@@ -41,18 +41,18 @@ LogicalResult Conv2dSparsityLinalgRewritePattern::matchAndRewrite(
   // In the case where one of the bitvectors is all zeros, then we can just
   // replace the entire op with a zero accumulator instead of doing any
   // computations
-  if ((*lattice)[0].none() || (*lattice)[1].none() || (*lattice)[2].none() ||
-      (*lattice)[3].none()) {
+  if (lattice[0].none() || lattice[1].none() || lattice[2].none() ||
+      lattice[3].none()) {
     ++numRewrites;
     rewriter.replaceOp(op, Cinit);
     return mlir::success();
   }
 
   // Get the contiguous dense ranges to iterate over
-  auto batchRanges = SparsityLattice::getDensityRanges((*lattice)[0]);
-  auto fRanges = SparsityLattice::getDensityRanges((*lattice)[1]);
-  auto rowRanges = SparsityLattice::getDensityRanges((*lattice)[2]);
-  auto colRanges = SparsityLattice::getDensityRanges((*lattice)[3]);
+  auto batchRanges = SparsityLattice::getDensityRanges(lattice[0]);
+  auto fRanges = SparsityLattice::getDensityRanges(lattice[1]);
+  auto rowRanges = SparsityLattice::getDensityRanges(lattice[2]);
+  auto colRanges = SparsityLattice::getDensityRanges(lattice[3]);
 
   auto input = op.getOperand(0);
   auto filter = op.getOperand(1);
@@ -159,8 +159,8 @@ LogicalResult Conv2dSparsityScfRewritePattern::matchAndRewrite(
   auto lattice = SparsityLattice::fromAttr(latticeAttr);
 
   // In the case where everything is dense there's no sparsity to optimize with
-  if ((*lattice)[0].all() && (*lattice)[1].all() && (*lattice)[2].all() &&
-      (*lattice)[3].all()) {
+  if (lattice[0].all() && lattice[1].all() && lattice[2].all() &&
+      lattice[3].all()) {
     return failure();
   }
 
@@ -172,18 +172,18 @@ LogicalResult Conv2dSparsityScfRewritePattern::matchAndRewrite(
   // In the case where one of the bitvectors is all zeros, then we can just
   // replace the entire op with a zero accumulator instead of doing any
   // computations
-  if ((*lattice)[0].none() || (*lattice)[1].none() || (*lattice)[2].none() ||
-      (*lattice)[3].none()) {
+  if (lattice[0].none() || lattice[1].none() || lattice[2].none() ||
+      lattice[3].none()) {
     ++numRewrites;
     rewriter.replaceOp(op, Cinit);
     return success();
   }
 
   // Get the contiguous dense ranges
-  auto batchRanges = SparsityLattice::getDensityRanges((*lattice)[0]);
-  auto fRanges = SparsityLattice::getDensityRanges((*lattice)[1]);
-  auto rowRanges = SparsityLattice::getDensityRanges((*lattice)[2]);
-  auto colRanges = SparsityLattice::getDensityRanges((*lattice)[3]);
+  auto batchRanges = SparsityLattice::getDensityRanges(lattice[0]);
+  auto fRanges = SparsityLattice::getDensityRanges(lattice[1]);
+  auto rowRanges = SparsityLattice::getDensityRanges(lattice[2]);
+  auto colRanges = SparsityLattice::getDensityRanges(lattice[3]);
 
   auto input = op.getOperand(0);
   auto filter = op.getOperand(1);

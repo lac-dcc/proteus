@@ -48,10 +48,9 @@ void proteus::ForwardPass::visit(mlir::Operation &op,
   if (op.hasAttr("proteus.lattice")) {
     auto attr = op.getAttr("proteus.lattice");
     auto arrayAttr = llvm::cast<mlir::ArrayAttr>(attr);
-    if (auto lattice = SparsityLattice::fromAttr(arrayAttr)) {
-      if (auto *entry = analysis.getState(op.getResult(0))) {
-        *entry = lattice.value();
-      }
+    auto lattice = SparsityLattice::fromAttr(arrayAttr);
+    if (auto *entry = analysis.getState(op.getResult(0))) {
+      *entry = lattice;
     }
   }
 
@@ -658,43 +657,37 @@ void proteus::ForwardPass::visitOp(mlir::tensor::ExtractSliceOp &op,
   auto sizes = op.getMixedSizes();
   auto strides = op.getMixedStrides();
 
-  // Helper lambda function that check that are items in the above attributes
-  // are constants If the case of dynamic attributes, we cannot propagate
-  // sparsity
-  auto checkConst = [](const auto &vector) {
-    for (auto &item : vector) {
-      if (!mlir::getConstantIntValue(item).has_value()) {
-        return;
-      }
-    }
-  };
-
-  checkConst(offsets);
-  checkConst(sizes);
-  checkConst(strides);
-
-  // A dimension is truly dropped (rank-reduced) only when the result rank is
-  // smaller than the source rank.  size==1 is necessary but not sufficient:
-  // e.g. extracting [1, 58, 28, 28] from [1, 116, 28, 28] keeps all four dims.
+  // A dimension is truly dropped only when the result rank is
+  // smaller than the source rank.
   bool hasDimReduction = (res->rank() < offsets.size());
 
   uint64_t resDim = 0;
   for (uint64_t srcDim = 0; srcDim < offsets.size(); srcDim++) {
-    auto size = mlir::getConstantIntValue(sizes[srcDim]);
+    auto sizeOpt = mlir::getConstantIntValue(sizes[srcDim]);
+    auto offsetOpt = mlir::getConstantIntValue(offsets[srcDim]);
+    auto strideOpt = mlir::getConstantIntValue(strides[srcDim]);
+
+    // In the case of dynamic attributes, we cannot propagate sparsity.
+    if (!sizeOpt.has_value() || !offsetOpt.has_value() ||
+        !strideOpt.has_value()) {
+      return;
+    }
+
+    int64_t size = sizeOpt.value();
 
     // Skip only when this dimension is actually being dropped from the result.
-    if (hasDimReduction && size.has_value() && size.value() == 1) {
+    if (hasDimReduction && size == 1) {
       continue;
     }
 
-    int64_t offset = mlir::getConstantIntValue(offsets[srcDim]).value();
-    int64_t stride = mlir::getConstantIntValue(strides[srcDim]).value();
+    int64_t offset = offsetOpt.value();
+    int64_t stride = strideOpt.value();
 
     // Same as with what we did with tensor.expand_shape, we will create
     // an initial bitvector that we will explicitly construct from the sparsity
     // information of the corresponding fibers in the input tensor
-    llvm::BitVector computed(size.value(), false);
-    for (int64_t j = 0; j < size.value(); ++j) {
+    llvm::BitVector computed(size, false);
+    for (int64_t j = 0; j < size; ++j) {
       // This formula gives as the fiber in the input tensor for the current
       // dimension
       int64_t srcFiber = offset + (j * stride);

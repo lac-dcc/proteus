@@ -163,8 +163,7 @@ void SparsityLattice::printAsAttr(const SparsityLattice &lattice,
   os << "]";
 }
 
-std::optional<SparsityLattice>
-SparsityLattice::fromAttr(const mlir::ArrayAttr &arrayAttr) {
+SparsityLattice SparsityLattice::fromAttr(const mlir::ArrayAttr &arrayAttr) {
   return constructFromAttr(arrayAttr);
 }
 

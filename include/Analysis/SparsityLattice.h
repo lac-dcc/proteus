@@ -169,15 +169,10 @@ public:
    * @brief Deserialises the MLIR array attribute to a SparsityLattice
    * object.
    *
-   * Looks for a "proteus.sparsity" key in @p dict. Returns std::nullopt if the
-   * key is absent, allowing callers to defer to the forward pass.
-   *
-   * @param dict A ArrayAttr on a function argument.
-   * @return The reconstructed lattice, or std::nullopt if no sparsity
-   * annotation is present.
+   * @param arrayAttr A "proteus.lattice" ArrayAttr, as produced by toAttr.
+   * @return The reconstructed lattice.
    */
-  static std::optional<SparsityLattice>
-  fromAttr(const mlir::ArrayAttr &arrayAttr);
+  static SparsityLattice fromAttr(const mlir::ArrayAttr &arrayAttr);
 
   /**
    * @brief Creates a lattice from a ranked tensor value
