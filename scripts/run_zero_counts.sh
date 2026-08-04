@@ -26,6 +26,17 @@ if ! command -v python3 &>/dev/null; then
   exit 1
 fi
 
+CSV_OUTPUT=false
+for arg in "$@"; do
+  case "$arg" in
+    --csv) CSV_OUTPUT=true ;;
+    *)
+      echo "Error: unknown argument '$arg'" >&2
+      exit 1
+      ;;
+  esac
+done
+
 LATTICE_NAMES=(
   "banded-64"
   "banded-128"
@@ -109,17 +120,23 @@ for model in "${MODELS[@]}"; do
   MATMUL_PCTS+=("$(matmul_for_model "$model")")
 done
 
+if [[ "$CSV_OUTPUT" == "true" ]]; then
+  echo "lattice,model,seed,fill_pad,forward,lateral,backward,total,breakoff_pct,first_matmul_pct,matmul_rw,conv_rw,depthwise_rw,poolsum_rw,poolmax_rw"
+fi
+
 for li in "${!LATTICE_NAMES[@]}"; do
   lattice_name="${LATTICE_NAMES[$li]}"
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
-  echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
-    "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
-    "Breakoff" "1st MM" "MM RW" "Cnv RW" "DW RW" "PSum RW" "PMax RW"
-  printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
-    "-----" "----" "--------" "-------" "-------" "--------" "-----" \
-    "--------" "------" "------" "------" "------" "-------" "-------"
+  if [[ "$CSV_OUTPUT" != "true" ]]; then
+    echo "=== seed-lattice: $lattice_name ==="
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
+      "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
+      "Breakoff" "1st MM" "MM RW" "Cnv RW" "DW RW" "PSum RW" "PMax RW"
+    printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
+      "-----" "----" "--------" "-------" "-------" "--------" "-----" \
+      "--------" "------" "------" "------" "------" "-------" "-------"
+  fi
 
   model_index=0
   for model in "${MODELS[@]}"; do
@@ -146,9 +163,17 @@ for li in "${!LATTICE_NAMES[@]}"; do
 
     IFS='|' read -r matmul_rw conv_rw depth_rw pool_rw poolmax_rw <<< "$(rewrite_counts_for_model "$model" "$lattice_attr")"
 
-    printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
-      "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
-      "$breakoff_str" "$matmul_str" "$matmul_rw" "$conv_rw" "$depth_rw" "$pool_rw" "$poolmax_rw"
+    if [[ "$CSV_OUTPUT" == "true" ]]; then
+      printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
+        "$lattice_name" "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
+        "$breakoff_pct" "$matmul_pct" "$matmul_rw" "$conv_rw" "$depth_rw" "$pool_rw" "$poolmax_rw"
+    else
+      printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
+        "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
+        "$breakoff_str" "$matmul_str" "$matmul_rw" "$conv_rw" "$depth_rw" "$pool_rw" "$poolmax_rw"
+    fi
   done
-  echo
+  if [[ "$CSV_OUTPUT" != "true" ]]; then
+    echo
+  fi
 done

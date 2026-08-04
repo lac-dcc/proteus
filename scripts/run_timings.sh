@@ -26,6 +26,17 @@ if ! command -v python3 &>/dev/null; then
   exit 1
 fi
 
+CSV_OUTPUT=false
+for arg in "$@"; do
+  case "$arg" in
+    --csv) CSV_OUTPUT=true ;;
+    *)
+      echo "Error: unknown argument '$arg'" >&2
+      exit 1
+      ;;
+  esac
+done
+
 TIMING_WARMUP="${TIMING_WARMUP:-3}"
 TIMING_RUNS="${TIMING_RUNS:-10}"
 
@@ -150,19 +161,25 @@ speedup_for_means() {
 
 MODELS=("$MLIR_DIR"/*.mlir)
 
+if [[ "$CSV_OUTPUT" == "true" ]]; then
+  echo "lattice,model,seed_mean,seed_std,fwd_mean,fwd_std,lat_mean,lat_std,back_mean,back_std,total_mean,total_std,rwscf_mean,rwscf_std,rwscf_speedup,speedup,base_mean,base_std,scf_mean,scf_std,scf_speedup"
+fi
+
 for li in "${!LATTICE_NAMES[@]}"; do
   lattice_name="${LATTICE_NAMES[$li]}"
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
-  echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s\n" \
-    "Model" "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" \
-    "RwScf(s)" "Speedup (RW)" \
-    "Speedup" "Base(s)" "Scf(s)" "Speedup (S)"
-  printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s\n" \
-    "-----" "-----------------" "-----------------" "-----------------" "-----------------" "-----------------" \
-    "-----------------" "------------" \
-    "-------" "-----------------" "-----------------" "-----------"
+  if [[ "$CSV_OUTPUT" != "true" ]]; then
+    echo "=== seed-lattice: $lattice_name ==="
+    printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s\n" \
+      "Model" "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" \
+      "RwScf(s)" "Speedup (RW)" \
+      "Speedup" "Base(s)" "Scf(s)" "Speedup (S)"
+    printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s\n" \
+      "-----" "-----------------" "-----------------" "-----------------" "-----------------" "-----------------" \
+      "-----------------" "------------" \
+      "-------" "-----------------" "-----------------" "-----------"
+  fi
 
   for model in "${MODELS[@]}"; do
     name="$(basename "$model" .mlir)"
@@ -188,10 +205,20 @@ for li in "${!LATTICE_NAMES[@]}"; do
     rwscf_speedup="$(speedup_for_means "$base_mean" "$rwscf_mean")"
     scf_speedup="$(speedup_for_means "$base_mean" "$scf_mean")"
 
-    printf "%-25s | %18s %18s %18s %18s %18s | %18s %12s | %8s | %18s %18s | %11s\n" \
-      "$name" "$seed_str" "$fwd_str" "$lat_str" "$back_str" "$total_str" \
-      "$rwscf_str" "$rwscf_speedup" \
-      "$speedup" "$base_str" "$scf_str" "$scf_speedup"
+    if [[ "$CSV_OUTPUT" == "true" ]]; then
+      printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
+        "$lattice_name" "$name" \
+        "$seed_mean" "$seed_std" "$fwd_mean" "$fwd_std" "$lat_mean" "$lat_std" "$back_mean" "$back_std" "$total_mean" "$total_std" \
+        "$rwscf_mean" "$rwscf_std" "${rwscf_speedup%x}" \
+        "${speedup%x}" "$base_mean" "$base_std" "$scf_mean" "$scf_std" "${scf_speedup%x}"
+    else
+      printf "%-25s | %18s %18s %18s %18s %18s | %18s %12s | %8s | %18s %18s | %11s\n" \
+        "$name" "$seed_str" "$fwd_str" "$lat_str" "$back_str" "$total_str" \
+        "$rwscf_str" "$rwscf_speedup" \
+        "$speedup" "$base_str" "$scf_str" "$scf_speedup"
+    fi
   done
-  echo
+  if [[ "$CSV_OUTPUT" != "true" ]]; then
+    echo
+  fi
 done
