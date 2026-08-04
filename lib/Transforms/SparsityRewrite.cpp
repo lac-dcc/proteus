@@ -33,13 +33,13 @@ void SparsityRewritePass::runOnOperation() {
                                                        numPoolMaxRewrites);
   }
 
+  std::unique_ptr<mlir::DefaultTimingManager> tm;
   if (timeRewrite) {
-    std::unique_ptr<mlir::DefaultTimingManager> tm;
     tm = std::make_unique<mlir::DefaultTimingManager>();
     tm->setEnabled(true);
-    mlir::TimingScope rootScope = tm ? tm->getRootScope() : mlir::TimingScope();
-    auto scope = rootScope.nest("Rewrite");
   }
+  mlir::TimingScope rootScope = tm ? tm->getRootScope() : mlir::TimingScope();
+  mlir::TimingScope scope = rootScope.nest("Rewrite");
 
   if (mlir::failed(
           mlir::applyPatternsGreedily(getOperation(), std::move(patterns)))) {
