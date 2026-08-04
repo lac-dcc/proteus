@@ -1,4 +1,4 @@
-// RUN: proteus-opt --spa-analysis="lattice-dump=true" --spa-rewrite %s | FileCheck %s
+// RUN: proteus-opt --spa-analysis="lattice-dump=true" --spa-rewrite="target=linalg" %s | FileCheck %s
 
 // CHECK-LABEL: func.func @single_dense_block
 func.func @single_dense_block(%arg0: tensor<1x1x5x5xf32>, %arg1: tensor<1x1x2x2xf32>) -> tensor<1x1x4x4xf32> {
