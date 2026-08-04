@@ -33,9 +33,9 @@ void AddProbeCallsPass::runOnOperation() {
       }
 
       builder.setInsertionPointAfter(op);
-      builder.create<mlir::probe::ObserveOp>(
-          op->getLoc(), result, static_cast<uint32_t>(opID),
-          static_cast<uint32_t>(resultID)); // NOLINT
+      mlir::probe::ObserveOp::create(builder, op->getLoc(), result,
+                                     static_cast<uint32_t>(opID),
+                                     static_cast<uint32_t>(resultID));
     }
   }
 
@@ -48,7 +48,7 @@ void AddProbeCallsPass::runOnOperation() {
       [&](mlir::func::ReturnOp returnOp) { returns.push_back(returnOp); });
   for (auto returnOp : returns) {
     builder.setInsertionPoint(returnOp);
-    builder.create<mlir::probe::ReportOp>(returnOp->getLoc()); // NOLINT
+    mlir::probe::ReportOp::create(builder, returnOp->getLoc());
   }
 }
 
