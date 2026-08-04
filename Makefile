@@ -61,11 +61,11 @@ tidy:
 watch:
 	watchman-make -p 'lib/**/*.cpp' 'include/**/*.h' 'tools/**/*.cpp' -t tidy
 
-clean:
-	rm -rf build
-
 docs: build
 	doxygen
+
+clean:
+	rm -rf build build-cov build-release docs
 
 dataset-convert: models-fetch
 	mkdir -p mlir_out mlir_out_zerobias
