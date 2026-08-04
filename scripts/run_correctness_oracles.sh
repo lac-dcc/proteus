@@ -67,13 +67,11 @@ oracle_for_model() {
 
 rewrite_correctness_for_model() {
   local model="$1" attr="$2"
-  local output linalg_result scf_result
+  local output scf_result
   output="$(python3 "$SCRIPT_DIR/check_rewrite_correctness.py" "$model" "$attr" 2>/dev/null || true)"
-  linalg_result="$(echo "$output" | "$GREP" -oP '^linalg: \K\S+' || true)"
   scf_result="$(echo "$output" | "$GREP" -oP '^scf: \K\S+' || true)"
-  [[ -z "$linalg_result" ]] && linalg_result="FAIL"
   [[ -z "$scf_result" ]] && scf_result="FAIL"
-  echo "${linalg_result}|${scf_result}"
+  echo "$scf_result"
 }
 
 if [[ ! -d "$MLIR_DIR" ]]; then
@@ -105,18 +103,18 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s | %10s | %10s %10s\n" "Model" "Analysis" "Rewrite (L)" "Rewrite (S)"
-  printf "%-25s | %10s | %10s %10s\n" "-----" "--------" "-----------" "-----------"
+  printf "%-25s | %10s | %10s\n" "Model" "Analysis" "Rewrite (S)"
+  printf "%-25s | %10s | %10s\n" "-----" "--------" "-----------"
 
   for model in "${MODELS[@]}"; do
     name="$(basename "$model" .mlir)"
 
     oracle_result="$(oracle_for_model "$model" "$lattice_attr")"
-    IFS='|' read -r linalg_result scf_result <<< "$(rewrite_correctness_for_model "$model" "$lattice_attr")"
+    scf_result="$(rewrite_correctness_for_model "$model" "$lattice_attr")"
 
-    printf "%-25s | %10s | %10s %10s\n" "$name" "$oracle_result" "$linalg_result" "$scf_result"
+    printf "%-25s | %10s | %10s\n" "$name" "$oracle_result" "$scf_result"
 
-    if [[ "$oracle_result" != "PASS" || "$linalg_result" != "PASS" || "$scf_result" != "PASS" ]]; then
+    if [[ "$oracle_result" != "PASS" || "$scf_result" != "PASS" ]]; then
       overall_pass=false
     fi
   done

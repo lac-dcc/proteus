@@ -155,14 +155,14 @@ for li in "${!LATTICE_NAMES[@]}"; do
   lattice_attr="${LATTICE_ATTRS[$li]}"
 
   echo "=== seed-lattice: $lattice_name ==="
-  printf "%-25s | %17s %17s %17s %17s %17s | %17s %17s | %8s | %17s %17s %17s | %11s %11s\n" \
+  printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s\n" \
     "Model" "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" \
-    "RwLin(s)" "RwScf(s)" \
-    "Speedup" "Base(s)" "Linalg(s)" "Scf(s)" "Speedup (L)" "Speedup (S)"
-  printf "%-25s | %17s %17s %17s %17s %17s | %17s %17s | %8s | %17s %17s %17s | %11s %11s\n" \
+    "RwScf(s)" "Speedup (RW)" \
+    "Speedup" "Base(s)" "Scf(s)" "Speedup (S)"
+  printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s\n" \
     "-----" "-----------------" "-----------------" "-----------------" "-----------------" "-----------------" \
-    "-----------------" "-----------------" \
-    "-------" "-----------------" "-----------------" "-----------------" "-----------" "-----------"
+    "-----------------" "------------" \
+    "-------" "-----------------" "-----------------" "-----------"
 
   for model in "${MODELS[@]}"; do
     name="$(basename "$model" .mlir)"
@@ -170,11 +170,9 @@ for li in "${!LATTICE_NAMES[@]}"; do
     IFS=$'\t' read -r seed_mean seed_std fwd_mean fwd_std lat_mean lat_std back_mean back_std total_mean total_std \
       <<< "$(analysis_timings_for_model "$model" "$lattice_attr")"
 
-    IFS=$'\t' read -r rwlin_mean rwlin_std <<< "$(rewrite_pass_time_for_model "$model" "$lattice_attr" linalg)"
     IFS=$'\t' read -r rwscf_mean rwscf_std <<< "$(rewrite_pass_time_for_model "$model" "$lattice_attr" scf)"
 
     IFS=$'\t' read -r base_mean base_std <<< "$(timed_runs_for_model "$name" "$lattice_attr")"
-    IFS=$'\t' read -r linalg_mean linalg_std <<< "$(timed_runs_for_model "$name" "$lattice_attr" linalg)"
     IFS=$'\t' read -r scf_mean scf_std <<< "$(timed_runs_for_model "$name" "$lattice_attr" scf)"
 
     seed_str="$(fmt_mean_std "$seed_mean" "$seed_std")"
@@ -182,20 +180,18 @@ for li in "${!LATTICE_NAMES[@]}"; do
     lat_str="$(fmt_mean_std "$lat_mean" "$lat_std")"
     back_str="$(fmt_mean_std "$back_mean" "$back_std")"
     total_str="$(fmt_mean_std "$total_mean" "$total_std")"
-    rwlin_str="$(fmt_mean_std "$rwlin_mean" "$rwlin_std")"
     rwscf_str="$(fmt_mean_std "$rwscf_mean" "$rwscf_std")"
     base_str="$(fmt_mean_std "$base_mean" "$base_std")"
-    linalg_str="$(fmt_mean_std "$linalg_mean" "$linalg_std")"
     scf_str="$(fmt_mean_std "$scf_mean" "$scf_std")"
 
     speedup="$(speedup_for_means "$base_mean" "$total_mean")"
-    linalg_speedup="$(speedup_for_means "$base_mean" "$linalg_mean")"
+    rwscf_speedup="$(speedup_for_means "$base_mean" "$rwscf_mean")"
     scf_speedup="$(speedup_for_means "$base_mean" "$scf_mean")"
 
-    printf "%-25s | %18s %18s %18s %18s %18s | %18s %18s | %8s | %18s %18s %18s | %11s %11s\n" \
+    printf "%-25s | %18s %18s %18s %18s %18s | %18s %12s | %8s | %18s %18s | %11s\n" \
       "$name" "$seed_str" "$fwd_str" "$lat_str" "$back_str" "$total_str" \
-      "$rwlin_str" "$rwscf_str" \
-      "$speedup" "$base_str" "$linalg_str" "$scf_str" "$linalg_speedup" "$scf_speedup"
+      "$rwscf_str" "$rwscf_speedup" \
+      "$speedup" "$base_str" "$scf_str" "$scf_speedup"
   done
   echo
 done
