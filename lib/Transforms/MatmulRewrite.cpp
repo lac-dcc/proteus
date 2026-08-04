@@ -29,7 +29,7 @@ mlir::LogicalResult MatmulSparsityLinalgRewritePattern::matchAndRewrite(
 
   // In the case where everything is dense on both bitvectors there's no
   // sparsity to optimize with
-  if ((*lattice)[0].all() && (*lattice)[1].all()) {
+  if (lattice[0].all() && lattice[1].all()) {
     return mlir::failure();
   }
 
@@ -38,15 +38,15 @@ mlir::LogicalResult MatmulSparsityLinalgRewritePattern::matchAndRewrite(
 
   // In the case where one of the bitvectors is all zeros, then we can just
   // replace the entire op with a zero fill instead of doing any computations
-  if ((*lattice)[0].none() || (*lattice)[1].none()) {
+  if (lattice[0].none() || lattice[1].none()) {
     ++numRewrites;
     rewriter.replaceOp(op, Cinit);
     return mlir::success();
   }
 
   // Get the contiguous dense ranges to iterate over
-  auto rowRanges = SparsityLattice::getDensityRanges((*lattice)[0]);
-  auto colRanges = SparsityLattice::getDensityRanges((*lattice)[1]);
+  auto rowRanges = SparsityLattice::getDensityRanges(lattice[0]);
+  auto colRanges = SparsityLattice::getDensityRanges(lattice[1]);
 
   auto lhs = op.getOperand(0);
   auto rhs = op.getOperand(1);
@@ -125,7 +125,7 @@ mlir::LogicalResult MatmulSparsityScfRewritePattern::matchAndRewrite(
 
   // In the case where everything is dense on both bitvectors there's no
   // sparsity to optimize with
-  if ((*lattice)[0].all() && (*lattice)[1].all()) {
+  if (lattice[0].all() && lattice[1].all()) {
     return mlir::failure();
   }
 
@@ -137,7 +137,7 @@ mlir::LogicalResult MatmulSparsityScfRewritePattern::matchAndRewrite(
 
   // In the case where one of the bitvectors is all zeros, then we can just
   // replace the entire op with a zero fill instead of doing any computations
-  if ((*lattice)[0].none() || (*lattice)[1].none()) {
+  if (lattice[0].none() || lattice[1].none()) {
     ++numRewrites;
     rewriter.replaceOp(op, Cinit);
     return mlir::success();
@@ -145,8 +145,8 @@ mlir::LogicalResult MatmulSparsityScfRewritePattern::matchAndRewrite(
 
   // Get the contiguous dense ranges; row i / col j is dense iff it falls in
   // one of these
-  auto rowRanges = SparsityLattice::getDensityRanges((*lattice)[0]);
-  auto colRanges = SparsityLattice::getDensityRanges((*lattice)[1]);
+  auto rowRanges = SparsityLattice::getDensityRanges(lattice[0]);
+  auto colRanges = SparsityLattice::getDensityRanges(lattice[1]);
 
   auto lhs = op.getOperand(0);
   auto rhs = op.getOperand(1);
