@@ -70,6 +70,7 @@ clean:
 dataset-convert: models-fetch
 	mkdir -p mlir_out mlir_out_zerobias
 	docker compose -f docker/docker-compose.yml run --build --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
+	scripts/generate_microbenchmarks.sh
 
 dataset-clean:
 	rm -rf mlir_out mlir_out_zerobias
