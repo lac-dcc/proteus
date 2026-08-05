@@ -234,7 +234,7 @@ def actual_lattices(model, seed_lattice):
                     "-e",
                     "main",
                     "--entry-point-result=void",
-                    "--O3",
+                    bench.mlir_runner_opt_flag(),
                 ],
                 capture_output=True,
                 text=True,
