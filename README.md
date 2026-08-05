@@ -165,4 +165,10 @@ To filter a benchmark on specific lattices you can use the `LATTICE_FILTER` vari
 make oracles LATTICE_FILTER=banded-64,all-sparse
 ```
 
+You can also filter by model with `MODEL_FILTER`, and you can deactivate `mlir-runner`'s `--O3` option with `NO_O3=1` for those benchmarks that have a fairly fast runtime.
+
+```bash
+make timings LATTICE_FILTER=banded-64,all-sparse MODEL_FILTER=alexnet NO_O3=1
+```
+
 Run `make dataset-clean` to remove the converted MLIR models.
