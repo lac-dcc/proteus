@@ -185,6 +185,15 @@ if [[ ${#MODELS[@]} -eq 0 ]]; then
   exit 1
 fi
 
+BASE_MEANS=()
+BASE_STDS=()
+for model in "${MODELS[@]}"; do
+  name="$(basename "$model" .mlir)"
+  IFS=$'\t' read -r base_mean base_std <<< "$(timed_runs_for_model "$name" "")"
+  BASE_MEANS+=("$base_mean")
+  BASE_STDS+=("$base_std")
+done
+
 if [[ "$CSV_OUTPUT" == "true" ]]; then
   echo "lattice,model,seed_mean,seed_std,fwd_mean,fwd_std,lat_mean,lat_std,back_mean,back_std,total_mean,total_std,rwscf_mean,rwscf_std,rwscf_speedup,speedup,base_mean,base_std,scf_mean,scf_std,scf_speedup"
 fi
@@ -205,15 +214,18 @@ for li in "${!LATTICE_NAMES[@]}"; do
       "-------" "-----------------" "-----------------" "-----------"
   fi
 
+  model_index=0
   for model in "${MODELS[@]}"; do
     name="$(basename "$model" .mlir)"
+    base_mean="${BASE_MEANS[$model_index]}"
+    base_std="${BASE_STDS[$model_index]}"
+    model_index=$((model_index + 1))
 
     IFS=$'\t' read -r seed_mean seed_std fwd_mean fwd_std lat_mean lat_std back_mean back_std total_mean total_std \
       <<< "$(analysis_timings_for_model "$model" "$lattice_attr")"
 
     IFS=$'\t' read -r rwscf_mean rwscf_std <<< "$(rewrite_pass_time_for_model "$model" "$lattice_attr" scf)"
 
-    IFS=$'\t' read -r base_mean base_std <<< "$(timed_runs_for_model "$name" "$lattice_attr")"
     IFS=$'\t' read -r scf_mean scf_std <<< "$(timed_runs_for_model "$name" "$lattice_attr" scf)"
 
     seed_str="$(fmt_mean_std "$seed_mean" "$seed_std")"
