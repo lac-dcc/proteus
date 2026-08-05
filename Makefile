@@ -6,6 +6,7 @@ NPROC := $(shell nproc 2>/dev/null || sysctl -n hw.logicalcpu)
 COVERAGE_MIN ?= 85
 SPLAT_WEIGHTS ?=
 LATTICE_FILTER ?=
+MODEL_FILTER ?=
 COVERAGE_SOURCES := $(shell find lib/Analysis lib/Runtime lib/Transforms -name "*.cpp")
 RUNTIME_LIB_GLOB = $$(find build-cov/lib -name "libProteusProbeRuntime.*")
 
@@ -70,18 +71,19 @@ clean:
 dataset-convert: models-fetch
 	mkdir -p mlir_out mlir_out_zerobias
 	docker compose -f docker/docker-compose.yml run --build --rm -e SPLAT_WEIGHTS=$(SPLAT_WEIGHTS) convert
+	scripts/generate_microbenchmarks.sh
 
 dataset-clean:
 	rm -rf mlir_out mlir_out_zerobias
 
 zero-counts:
-	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) run
+	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) -e MODEL_FILTER=$(MODEL_FILTER) -e NO_O3=$(NO_O3) run
 
 timings:
-	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) timings
+	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) -e MODEL_FILTER=$(MODEL_FILTER) -e NO_O3=$(NO_O3) timings
 
 oracles:
-	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) oracles
+	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) -e MODEL_FILTER=$(MODEL_FILTER) -e NO_O3=$(NO_O3) oracles
 
 coverage-check:
 	python3 scripts/check_forward_pass_coverage.py

@@ -66,8 +66,15 @@ if [[ -n "${LATTICE_FILTER:-}" ]]; then
       FILTERED_ATTRS+=("${LATTICE_ATTRS[$i]}")
     fi
   done
-  LATTICE_NAMES=("${FILTERED_NAMES[@]}")
-  LATTICE_ATTRS=("${FILTERED_ATTRS[@]}")
+  LATTICE_NAMES=()
+  LATTICE_ATTRS=()
+  [[ ${#FILTERED_NAMES[@]} -gt 0 ]] && LATTICE_NAMES=("${FILTERED_NAMES[@]}")
+  [[ ${#FILTERED_ATTRS[@]} -gt 0 ]] && LATTICE_ATTRS=("${FILTERED_ATTRS[@]}")
+fi
+
+if [[ ${#LATTICE_NAMES[@]} -eq 0 ]]; then
+  echo "Error: no lattices to check (LATTICE_FILTER=${LATTICE_FILTER:-unset} matched none)." >&2
+  exit 1
 fi
 
 seed_opt() {
@@ -161,6 +168,32 @@ speedup_for_means() {
 
 MODELS=("$MLIR_DIR"/*.mlir)
 
+if [[ -n "${MODEL_FILTER:-}" ]]; then
+  FILTERED_MODELS=()
+  for model in "${MODELS[@]}"; do
+    name="$(basename "$model" .mlir)"
+    if [[ ",${MODEL_FILTER}," == *",${name},"* ]]; then
+      FILTERED_MODELS+=("$model")
+    fi
+  done
+  MODELS=()
+  [[ ${#FILTERED_MODELS[@]} -gt 0 ]] && MODELS=("${FILTERED_MODELS[@]}")
+fi
+
+if [[ ${#MODELS[@]} -eq 0 ]]; then
+  echo "Error: no models to check (MODEL_FILTER=${MODEL_FILTER:-unset} matched none in $MLIR_DIR)." >&2
+  exit 1
+fi
+
+BASE_MEANS=()
+BASE_STDS=()
+for model in "${MODELS[@]}"; do
+  name="$(basename "$model" .mlir)"
+  IFS=$'\t' read -r base_mean base_std <<< "$(timed_runs_for_model "$name" "")"
+  BASE_MEANS+=("$base_mean")
+  BASE_STDS+=("$base_std")
+done
+
 if [[ "$CSV_OUTPUT" == "true" ]]; then
   echo "lattice,model,seed_mean,seed_std,fwd_mean,fwd_std,lat_mean,lat_std,back_mean,back_std,total_mean,total_std,rwscf_mean,rwscf_std,rwscf_speedup,speedup,base_mean,base_std,scf_mean,scf_std,scf_speedup"
 fi
@@ -181,15 +214,18 @@ for li in "${!LATTICE_NAMES[@]}"; do
       "-------" "-----------------" "-----------------" "-----------"
   fi
 
+  model_index=0
   for model in "${MODELS[@]}"; do
     name="$(basename "$model" .mlir)"
+    base_mean="${BASE_MEANS[$model_index]}"
+    base_std="${BASE_STDS[$model_index]}"
+    model_index=$((model_index + 1))
 
     IFS=$'\t' read -r seed_mean seed_std fwd_mean fwd_std lat_mean lat_std back_mean back_std total_mean total_std \
       <<< "$(analysis_timings_for_model "$model" "$lattice_attr")"
 
     IFS=$'\t' read -r rwscf_mean rwscf_std <<< "$(rewrite_pass_time_for_model "$model" "$lattice_attr" scf)"
 
-    IFS=$'\t' read -r base_mean base_std <<< "$(timed_runs_for_model "$name" "$lattice_attr")"
     IFS=$'\t' read -r scf_mean scf_std <<< "$(timed_runs_for_model "$name" "$lattice_attr" scf)"
 
     seed_str="$(fmt_mean_std "$seed_mean" "$seed_std")"

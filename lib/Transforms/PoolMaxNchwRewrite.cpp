@@ -35,17 +35,28 @@ LogicalResult PoolMaxNchwSparsityScfRewritePattern::matchAndRewrite(
   }
 
   auto resultType = llvm::cast<RankedTensorType>(op.getResult(0).getType());
+  auto elementType = resultType.getElementType();
 
   auto loc = op.getLoc();
   auto Cinit = op.getOutputs()[0]; // NOLINT
 
-  // In the case where one of the bitvectors is all zeros, then we can just
-  // replace the entire op with a zero accumulator instead of doing any
-  // computations
+  // In the case where one of the bitvectors are all zeros,
+  // the result is linalg.max(Cinit, dense<0.0> : tensor<Cinit.size>)
   if (lattice[0].none() || lattice[1].none() || lattice[2].none() ||
       lattice[3].none()) {
+    auto zero = arith::ConstantOp::create(rewriter, loc,
+                                          rewriter.getZeroAttr(elementType));
+    auto emptyOp = tensor::EmptyOp::create(rewriter, loc, resultType.getShape(),
+                                           elementType);
+    auto fillOp = linalg::FillOp::create(rewriter, loc, zero.getResult(),
+                                         emptyOp.getResult());
+    auto emptyOp2 = tensor::EmptyOp::create(rewriter, loc,
+                                            resultType.getShape(), elementType);
+    auto maxOp = linalg::MaxOp::create(
+        rewriter, loc, {Cinit, fillOp.getResult(0)}, emptyOp2.getResult());
+
     ++numRewrites;
-    rewriter.replaceOp(op, Cinit);
+    rewriter.replaceOp(op, maxOp.getResult(0));
     return success();
   }
 
@@ -115,12 +126,14 @@ LogicalResult PoolMaxNchwSparsityScfRewritePattern::matchAndRewrite(
                 auto Onchw = kwArgs[0]; // NOLINT
 
                 // https://github.com/llvm/llvm-project/blob/main/mlir/python/mlir/dialects/linalg/opdsl/ops/core_named_ops.py
-                // For pooling_nchw_sum, the output Layout is as follows:
-                // O[n, c, oh, ow] +=
-                // I[n, c, oh * SH + kh * DH, ow * SW + kw * DW]
+                // For pooling_nchw_max, the output Layout is as follows:
+                // O[n, c, oh, ow] =
+                // max(I[n, c, oh * SH + kh * DH, ow * SW + kw * DW]) within
+                // (kh, kw)
                 auto ih = arith::AddIOp::create(
                     b, loc, arith::MulIOp::create(b, loc, oh, constStrideH),
                     arith::MulIOp::create(b, loc, kh, constDilH));
+
                 auto iw = arith::AddIOp::create(
                     b, loc, arith::MulIOp::create(b, loc, ow, constStrideW),
                     arith::MulIOp::create(b, loc, kw, constDilW));
@@ -190,8 +203,24 @@ LogicalResult PoolMaxNchwSparsityScfRewritePattern::matchAndRewrite(
 
                               // -- else case --------------------------------
                               [&](OpBuilder &b, Location loc) {
-                                // Nothing happens here, just yield
-                                scf::YieldOp::create(b, loc, Cinit);
+                                // The result here is arith.max(Cinit, 0)
+                                auto Onchw = // NOLINT
+                                    tensor::ExtractOp::create(b, loc, Cinit,
+                                                              {n, f, oh, ow});
+
+                                auto Inchw = // NOLINT
+                                    arith::ConstantOp::create(
+                                        b, loc, b.getZeroAttr(elementType));
+
+                                auto max = arith::MaximumFOp::create(
+                                    b, loc, Onchw.getResult(),
+                                    Inchw.getResult());
+
+                                auto cnew = tensor::InsertOp::create(
+                                    b, loc, max.getResult(), Cinit,
+                                    {n, f, oh, ow});
+
+                                scf::YieldOp::create(b, loc, cnew.getResult());
                               });
 
                           scf::YieldOp::create(b, loc, ifOp.getResult(0));

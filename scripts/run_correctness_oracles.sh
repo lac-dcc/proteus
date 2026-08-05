@@ -52,8 +52,15 @@ if [[ -n "${LATTICE_FILTER:-}" ]]; then
       FILTERED_ATTRS+=("${LATTICE_ATTRS[$i]}")
     fi
   done
-  LATTICE_NAMES=("${FILTERED_NAMES[@]}")
-  LATTICE_ATTRS=("${FILTERED_ATTRS[@]}")
+  LATTICE_NAMES=()
+  LATTICE_ATTRS=()
+  [[ ${#FILTERED_NAMES[@]} -gt 0 ]] && LATTICE_NAMES=("${FILTERED_NAMES[@]}")
+  [[ ${#FILTERED_ATTRS[@]} -gt 0 ]] && LATTICE_ATTRS=("${FILTERED_ATTRS[@]}")
+fi
+
+if [[ ${#LATTICE_NAMES[@]} -eq 0 ]]; then
+  echo "Error: no lattices to check (LATTICE_FILTER=${LATTICE_FILTER:-unset} matched none)." >&2
+  exit 1
 fi
 
 oracle_for_model() {
@@ -89,7 +96,8 @@ if [[ -n "${MODEL_FILTER:-}" ]]; then
       FILTERED_MODELS+=("$model")
     fi
   done
-  MODELS=("${FILTERED_MODELS[@]}")
+  MODELS=()
+  [[ ${#FILTERED_MODELS[@]} -gt 0 ]] && MODELS=("${FILTERED_MODELS[@]}")
 fi
 
 if [[ ${#MODELS[@]} -eq 0 ]]; then

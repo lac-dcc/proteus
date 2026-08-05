@@ -61,6 +61,10 @@ NANOTIME_CALL_TEMPLATE = """  func.func private @nanoTime() -> i64 attributes {{
 """
 
 
+def mlir_runner_opt_flag() -> str:
+    return "--O0" if os.environ.get("NO_O3") else "--O3"
+
+
 def llvm_tool(name: str) -> str:
     prefix = os.environ.get("LLVM_PREFIX")
     if not prefix:
@@ -139,7 +143,7 @@ def timed_runs(
             try:
                 run = subprocess.run(
                     [mlir_runner, lowered_path, f"--shared-libs={shared_libs}",
-                     "--entry-point-result=void", "--O3"],
+                     "--entry-point-result=void", mlir_runner_opt_flag()],
                     capture_output=True, text=True, timeout=TIMEOUT,
                 )
             except subprocess.TimeoutExpired:

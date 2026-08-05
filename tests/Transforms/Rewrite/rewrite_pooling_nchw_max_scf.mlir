@@ -8,7 +8,11 @@ func.func @fully_sparse_batch(%arg0: tensor<1x2x4x4xf32>) -> tensor<1x2x4x4xf32>
        ins(%arg0, %filter : tensor<1x2x4x4xf32>, tensor<1x1xf32>) outs(%init : tensor<1x2x4x4xf32>) -> tensor<1x2x4x4xf32>
   return %0 : tensor<1x2x4x4xf32>
 }
-// CHECK: %[[ZEROED:.*]] = arith.constant {{.*}}dense<0.000000e+00> : tensor<1x2x4x4xf32>
-// CHECK-NOT: linalg.pooling_nchw_sum
+// CHECK: %[[ZERO:.*]] = arith.constant 0.000000e+00 : f32
+// CHECK: %[[EMPTY0:.*]] = tensor.empty() : tensor<1x2x4x4xf32>
+// CHECK: %[[ZEROED:.*]] = linalg.fill ins(%[[ZERO]] : f32) outs(%[[EMPTY0]] : tensor<1x2x4x4xf32>) -> tensor<1x2x4x4xf32>
+// CHECK: %[[EMPTY1:.*]] = tensor.empty() : tensor<1x2x4x4xf32>
+// CHECK: %[[MAXED:.*]] = linalg.max ins(%{{.*}}, %[[ZEROED]] : tensor<1x2x4x4xf32>, tensor<1x2x4x4xf32>) outs(%[[EMPTY1]] : tensor<1x2x4x4xf32>) -> tensor<1x2x4x4xf32>
+// CHECK-NOT: linalg.pooling_nchw_max
 // CHECK-NOT: scf.for
-// CHECK: return %[[ZEROED]]
+// CHECK: return %[[MAXED]]

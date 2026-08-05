@@ -112,7 +112,7 @@ def printed_output(model, seed_lattice, rewrite=None):
                     "-e",
                     "main",
                     "--entry-point-result=void",
-                    "--O3",
+                    bench.mlir_runner_opt_flag(),
                 ],
                 capture_output=True,
                 text=True,
