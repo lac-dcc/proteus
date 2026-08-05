@@ -63,8 +63,15 @@ if [[ -n "${LATTICE_FILTER:-}" ]]; then
       FILTERED_ATTRS+=("${LATTICE_ATTRS[$i]}")
     fi
   done
-  LATTICE_NAMES=("${FILTERED_NAMES[@]}")
-  LATTICE_ATTRS=("${FILTERED_ATTRS[@]}")
+  LATTICE_NAMES=()
+  LATTICE_ATTRS=()
+  [[ ${#FILTERED_NAMES[@]} -gt 0 ]] && LATTICE_NAMES=("${FILTERED_NAMES[@]}")
+  [[ ${#FILTERED_ATTRS[@]} -gt 0 ]] && LATTICE_ATTRS=("${FILTERED_ATTRS[@]}")
+fi
+
+if [[ ${#LATTICE_NAMES[@]} -eq 0 ]]; then
+  echo "Error: no lattices to check (LATTICE_FILTER=${LATTICE_FILTER:-unset} matched none)." >&2
+  exit 1
 fi
 
 seed_opt() {
@@ -114,6 +121,23 @@ rewrite_counts_for_model() {
 }
 
 MODELS=("$MLIR_DIR"/*.mlir)
+
+if [[ -n "${MODEL_FILTER:-}" ]]; then
+  FILTERED_MODELS=()
+  for model in "${MODELS[@]}"; do
+    name="$(basename "$model" .mlir)"
+    if [[ ",${MODEL_FILTER}," == *",${name},"* ]]; then
+      FILTERED_MODELS+=("$model")
+    fi
+  done
+  MODELS=()
+  [[ ${#FILTERED_MODELS[@]} -gt 0 ]] && MODELS=("${FILTERED_MODELS[@]}")
+fi
+
+if [[ ${#MODELS[@]} -eq 0 ]]; then
+  echo "Error: no models to check (MODEL_FILTER=${MODEL_FILTER:-unset} matched none in $MLIR_DIR)." >&2
+  exit 1
+fi
 
 MATMUL_PCTS=()
 for model in "${MODELS[@]}"; do
