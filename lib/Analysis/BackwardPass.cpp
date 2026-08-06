@@ -76,11 +76,7 @@ proteus::BackwardPass::visit(mlir::Operation &op, SparsityEngine &analysis) {
             return visitPassthroughOp(op, analysis);
           })
       .Default(
-          [&](mlir::Operation *op) -> std::optional<proteus::SparsityLattice> {
-            if (op->getNumResults() == 0) {
-              return std::nullopt;
-            }
-
+          [&](mlir::Operation *) -> std::optional<proteus::SparsityLattice> {
             return *analysis.getState(analysis.getCandidateValue());
           });
 }

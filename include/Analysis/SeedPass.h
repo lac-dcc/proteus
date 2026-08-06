@@ -63,15 +63,6 @@ private:
    */
   static void seedSplat(mlir::DenseElementsAttr &denseAttr, bool isFloat,
                         SparsityLattice &lattice);
-
-  /**
-   * @brief Seeds a non-splat constant using row-major stride decomposition.
-   *
-   * Clears all bits first, then re-sets each dimension bit touched by at
-   * least one non-zero element in that slice.
-   */
-  static void seedNonSplat(mlir::DenseElementsAttr &denseAttr, bool isFloat,
-                           SparsityLattice &lattice);
 };
 
 } // namespace proteus

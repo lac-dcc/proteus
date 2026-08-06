@@ -60,6 +60,4 @@ struct SparsityRewritePass : public mlir::OperationPass<mlir::func::FuncOp> {
   unsigned numPoolMaxRewrites = 0;
 };
 
-std::unique_ptr<mlir::Pass> createSparsityRewritePass();
-
 } // namespace proteus

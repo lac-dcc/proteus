@@ -73,5 +73,4 @@ struct SparsityPropagationAnalysis
       llvm::cl::init("")};
 };
 
-std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis();
 } // namespace proteus

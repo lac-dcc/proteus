@@ -40,12 +40,6 @@ public:
            mlir::TimingScope *timing = nullptr);
 
   /**
-   * @brief Returns a read-only reference to the full lattice map.
-   * @return Const reference to the internal LatticeMap.
-   */
-  [[nodiscard]] const LatticeMap &getState() const;
-
-  /**
    * @brief Returns a mutable reference to the full lattice map.
    * @return Reference to the internal LatticeMap.
    */
@@ -59,15 +53,6 @@ public:
    *         value is not present in the map.
    */
   SparsityLattice *getState(const mlir::Value &value);
-
-  /**
-   * @brief Looks up the lattice for a specific MLIR value (const overload).
-   *
-   * @param value The value to query.
-   * @return Const pointer to the SparsityLattice for @p value, or nullptr if
-   *         the value is not present in the map.
-   */
-  [[nodiscard]] const SparsityLattice *getState(const mlir::Value &value) const;
 
   /**
    * @brief Dispatcher function for inferring sparsity on a specific operation.

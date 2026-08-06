@@ -25,10 +25,7 @@ void proteus::SeedPass::run(mlir::Block *block, SparsityEngine &analysis) {
     return;
   }
 
-  auto funcOp = llvm::dyn_cast<mlir::func::FuncOp>(block->getParentOp());
-  if (!funcOp) {
-    return;
-  }
+  auto funcOp = llvm::cast<mlir::func::FuncOp>(block->getParentOp());
 
   for (auto &arg : block->getArguments()) {
     auto lattice = resolveArgLattice(arg, funcOp);
@@ -60,42 +57,6 @@ void proteus::SeedPass::seedSplat(mlir::DenseElementsAttr &denseAttr,
   }
 }
 
-void proteus::SeedPass::seedNonSplat(mlir::DenseElementsAttr &denseAttr,
-                                     bool isFloat, SparsityLattice &lattice) {
-
-  for (std::size_t d = 0; d < lattice.rank(); ++d) {
-    lattice[d].reset();
-  }
-
-  if (lattice.rank() == 0) {
-    return;
-  }
-
-  llvm::SmallVector<uint64_t> strides(lattice.rank());
-  strides[lattice.rank() - 1] = 1;
-  for (int64_t d = static_cast<int64_t>(lattice.rank()) - 2; d >= 0; --d) {
-    strides[d] = strides[d + 1] * lattice[d + 1].size();
-  }
-
-  if (isFloat) {
-    uint64_t index = 0;
-    for (auto val : denseAttr.getValues<llvm::APFloat>()) {
-      if (!val.isZero()) {
-        markSlices(index, strides, lattice);
-      }
-      ++index;
-    }
-  } else {
-    int64_t index = 0;
-    for (auto val : denseAttr.getValues<llvm::APInt>()) {
-      if (!val.isZero()) {
-        markSlices(index, strides, lattice);
-      }
-      ++index;
-    }
-  }
-}
-
 void proteus::SeedPass::seedConstant(mlir::arith::ConstantOp op,
                                      SparsityEngine &analysis) {
 
@@ -122,9 +83,6 @@ void proteus::SeedPass::seedConstant(mlir::arith::ConstantOp op,
   if (denseAttr.isSplat()) {
     seedSplat(denseAttr, isFloat, lattice.value());
   }
-  // else {
-  //   seedNonSplat(denseAttr, isFloat, lattice.value());
-  // }
 
   analysis.getState().try_emplace(op.getResult(), lattice.value());
 }
