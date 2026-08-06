@@ -2,6 +2,13 @@
   <img alt="Project Banner" src="assets/images/banner.png" width="90%" height="auto"/></br>
 </p>
 
+<p align="center">
+  <a href="https://github.com/lac-dcc/proteus/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/lac-dcc/proteus/actions/workflows/ci.yml/badge.svg"/></a>
+  <img alt="License" src="https://img.shields.io/badge/license-GPLv3-blue.svg"/>
+  <img alt="C++" src="https://img.shields.io/badge/c%2B%2B-17-blue.svg"/>
+  <img alt="LLVM/MLIR" src="https://img.shields.io/badge/LLVM%2FMLIR-22-orange.svg"/>
+</p>
+
 Proteus is an MLIR-based implementation of **[Sparsity Propagation Analysis](https://homepages.dcc.ufmg.br/~fernando/publications/papers/CGO26_Kaio.pdf) (SPA)**. It provides a static analysis framework to conservatively infer sparsity in tensor slices by propagating information across computational graphs. Unlike traditional element-wise analyses, Proteus operates on dimension-indexed bitmaps, making it asymptotically faster than graph execution.
 ## Goal of the Analysis
 
