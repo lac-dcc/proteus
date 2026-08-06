@@ -36,25 +36,10 @@ void proteus::SparsityEngine::run(mlir::Block *block, PassStage stage,
   run<BackwardPass>(block);
 }
 
-const proteus::LatticeMap &proteus::SparsityEngine::getState() const {
-  return state;
-}
-
 proteus::LatticeMap &proteus::SparsityEngine::getState() { return state; }
 
 proteus::SparsityLattice *
 proteus::SparsityEngine::getState(const mlir::Value &value) {
-  auto it = state.find(value);
-
-  if (it != state.end()) {
-    return &it->second;
-  }
-
-  return nullptr;
-}
-
-const proteus::SparsityLattice *
-proteus::SparsityEngine::getState(const mlir::Value &value) const {
   auto it = state.find(value);
 
   if (it != state.end()) {
