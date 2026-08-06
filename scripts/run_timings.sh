@@ -41,19 +41,25 @@ TIMING_WARMUP="${TIMING_WARMUP:-3}"
 TIMING_RUNS="${TIMING_RUNS:-10}"
 
 LATTICE_NAMES=(
+  "banded-16"
+  "banded-32"
   "banded-64"
   "banded-128"
   "banded-192"
+  "banded-16-strided"
+  "banded-32-strided"
   "banded-64-strided"
-  "all-dense"
   "all-sparse"
 )
 LATTICE_ATTRS=(
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -65536, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: -65536, -1, -1, 4294967295>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -4294967296, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: -4294967296, -1, -1, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: 0, -1, -1, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, -1, 4294967295>}, {size = 224 : i64, words = array<i64: 0, 0, -1, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 4294967295>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 4294967295>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -281470681808896, -281470681808896, -281470681808896, 4294901760>}, {size = 224 : i64, words = array<i64: -281470681808896, -281470681808896, -281470681808896, 4294901760>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -4294967296, -4294967296, -4294967296, 0>}, {size = 224 : i64, words = array<i64: -4294967296, -4294967296, -4294967296, 0>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, -1, 0, 4294967295>}, {size = 224 : i64, words = array<i64: 0, -1, 0, 4294967295>}]"
-  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -1, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: -1, -1, -1, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}]"
 )
 
