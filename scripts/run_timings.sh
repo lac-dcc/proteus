@@ -41,19 +41,25 @@ TIMING_WARMUP="${TIMING_WARMUP:-3}"
 TIMING_RUNS="${TIMING_RUNS:-10}"
 
 LATTICE_NAMES=(
+  "banded-16"
+  "banded-32"
   "banded-64"
   "banded-128"
   "banded-192"
+  "banded-16-strided"
+  "banded-32-strided"
   "banded-64-strided"
-  "all-dense"
   "all-sparse"
 )
 LATTICE_ATTRS=(
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -65536, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: -65536, -1, -1, 4294967295>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -4294967296, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: -4294967296, -1, -1, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: 0, -1, -1, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, -1, 4294967295>}, {size = 224 : i64, words = array<i64: 0, 0, -1, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 4294967295>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 4294967295>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -281470681808896, -281470681808896, -281470681808896, 4294901760>}, {size = 224 : i64, words = array<i64: -281470681808896, -281470681808896, -281470681808896, 4294901760>}]"
+  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -4294967296, -4294967296, -4294967296, 0>}, {size = 224 : i64, words = array<i64: -4294967296, -4294967296, -4294967296, 0>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, -1, 0, 4294967295>}, {size = 224 : i64, words = array<i64: 0, -1, 0, 4294967295>}]"
-  "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: -1, -1, -1, 4294967295>}, {size = 224 : i64, words = array<i64: -1, -1, -1, 4294967295>}]"
   "[{size = 1 : i64, words = array<i64: 1>}, {size = 3 : i64, words = array<i64: 7>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}, {size = 224 : i64, words = array<i64: 0, 0, 0, 0>}]"
 )
 
@@ -166,6 +172,15 @@ speedup_for_means() {
   awk -v b="$base" -v r="$val" 'BEGIN{ if (r > 0) printf "%.2fx", b/r; else print "n/a" }'
 }
 
+pvalue_for_samples() {
+  local base_samples="$1" val_samples="$2"
+  if [[ -z "$base_samples" || -z "$val_samples" ]]; then
+    echo "n/a"
+    return
+  fi
+  python3 "$SCRIPT_DIR/benchmark_runtime.py" --pvalue "$base_samples" "$val_samples"
+}
+
 MODELS=("$MLIR_DIR"/*.mlir)
 
 if [[ -n "${MODEL_FILTER:-}" ]]; then
@@ -187,15 +202,17 @@ fi
 
 BASE_MEANS=()
 BASE_STDS=()
+BASE_SAMPLES=()
 for model in "${MODELS[@]}"; do
   name="$(basename "$model" .mlir)"
-  IFS=$'\t' read -r base_mean base_std <<< "$(timed_runs_for_model "$name" "")"
+  IFS=$'\t' read -r base_mean base_std base_samples <<< "$(timed_runs_for_model "$name" "")"
   BASE_MEANS+=("$base_mean")
   BASE_STDS+=("$base_std")
+  BASE_SAMPLES+=("$base_samples")
 done
 
 if [[ "$CSV_OUTPUT" == "true" ]]; then
-  echo "lattice,model,seed_mean,seed_std,fwd_mean,fwd_std,lat_mean,lat_std,back_mean,back_std,total_mean,total_std,rwscf_mean,rwscf_std,rwscf_speedup,speedup,base_mean,base_std,scf_mean,scf_std,scf_speedup"
+  echo "lattice,model,seed_mean,seed_std,fwd_mean,fwd_std,lat_mean,lat_std,back_mean,back_std,total_mean,total_std,rwscf_mean,rwscf_std,rwscf_speedup,speedup,base_mean,base_std,scf_mean,scf_std,scf_speedup,scf_pvalue"
 fi
 
 for li in "${!LATTICE_NAMES[@]}"; do
@@ -204,14 +221,14 @@ for li in "${!LATTICE_NAMES[@]}"; do
 
   if [[ "$CSV_OUTPUT" != "true" ]]; then
     echo "=== seed-lattice: $lattice_name ==="
-    printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s\n" \
+    printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s %10s\n" \
       "Model" "Seed(s)" "Fwd(s)" "Lat(s)" "Back(s)" "Total(s)" \
       "RwScf(s)" "Speedup (RW)" \
-      "Speedup" "Base(s)" "Scf(s)" "Speedup (S)"
-    printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s\n" \
+      "Speedup" "Base(s)" "Scf(s)" "Speedup (S)" "p-value"
+    printf "%-25s | %17s %17s %17s %17s %17s | %17s %12s | %8s | %17s %17s | %11s %10s\n" \
       "-----" "-----------------" "-----------------" "-----------------" "-----------------" "-----------------" \
       "-----------------" "------------" \
-      "-------" "-----------------" "-----------------" "-----------"
+      "-------" "-----------------" "-----------------" "-----------" "--------"
   fi
 
   model_index=0
@@ -219,6 +236,7 @@ for li in "${!LATTICE_NAMES[@]}"; do
     name="$(basename "$model" .mlir)"
     base_mean="${BASE_MEANS[$model_index]}"
     base_std="${BASE_STDS[$model_index]}"
+    base_samples="${BASE_SAMPLES[$model_index]}"
     model_index=$((model_index + 1))
 
     IFS=$'\t' read -r seed_mean seed_std fwd_mean fwd_std lat_mean lat_std back_mean back_std total_mean total_std \
@@ -226,7 +244,9 @@ for li in "${!LATTICE_NAMES[@]}"; do
 
     IFS=$'\t' read -r rwscf_mean rwscf_std <<< "$(rewrite_pass_time_for_model "$model" "$lattice_attr" scf)"
 
-    IFS=$'\t' read -r scf_mean scf_std <<< "$(timed_runs_for_model "$name" "$lattice_attr" scf)"
+    IFS=$'\t' read -r scf_mean scf_std scf_samples <<< "$(timed_runs_for_model "$name" "$lattice_attr" scf)"
+
+    scf_pvalue="$(pvalue_for_samples "$base_samples" "$scf_samples")"
 
     seed_str="$(fmt_mean_std "$seed_mean" "$seed_std")"
     fwd_str="$(fmt_mean_std "$fwd_mean" "$fwd_std")"
@@ -242,16 +262,16 @@ for li in "${!LATTICE_NAMES[@]}"; do
     scf_speedup="$(speedup_for_means "$base_mean" "$scf_mean")"
 
     if [[ "$CSV_OUTPUT" == "true" ]]; then
-      printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
+      printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
         "$lattice_name" "$name" \
         "$seed_mean" "$seed_std" "$fwd_mean" "$fwd_std" "$lat_mean" "$lat_std" "$back_mean" "$back_std" "$total_mean" "$total_std" \
         "$rwscf_mean" "$rwscf_std" "${rwscf_speedup%x}" \
-        "${speedup%x}" "$base_mean" "$base_std" "$scf_mean" "$scf_std" "${scf_speedup%x}"
+        "${speedup%x}" "$base_mean" "$base_std" "$scf_mean" "$scf_std" "${scf_speedup%x}" "$scf_pvalue"
     else
-      printf "%-25s | %18s %18s %18s %18s %18s | %18s %12s | %8s | %18s %18s | %11s\n" \
+      printf "%-25s | %18s %18s %18s %18s %18s | %18s %12s | %8s | %18s %18s | %11s %10s\n" \
         "$name" "$seed_str" "$fwd_str" "$lat_str" "$back_str" "$total_str" \
         "$rwscf_str" "$rwscf_speedup" \
-        "$speedup" "$base_str" "$scf_str" "$scf_speedup"
+        "$speedup" "$base_str" "$scf_str" "$scf_speedup" "$scf_pvalue"
     fi
   done
   if [[ "$CSV_OUTPUT" != "true" ]]; then
