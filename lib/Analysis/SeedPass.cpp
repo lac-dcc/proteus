@@ -25,10 +25,7 @@ void proteus::SeedPass::run(mlir::Block *block, SparsityEngine &analysis) {
     return;
   }
 
-  auto funcOp = llvm::dyn_cast<mlir::func::FuncOp>(block->getParentOp());
-  if (!funcOp) {
-    return;
-  }
+  auto funcOp = llvm::cast<mlir::func::FuncOp>(block->getParentOp());
 
   for (auto &arg : block->getArguments()) {
     auto lattice = resolveArgLattice(arg, funcOp);

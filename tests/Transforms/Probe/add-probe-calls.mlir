@@ -28,3 +28,15 @@ func.func @with_lattice_info(%arg0: tensor<2x2xf32>, %arg1: tensor<2x2xf32>, %ar
 // CHECK-NEXT: probe.observe(%[[MATMUL_RES]] : tensor<2x2xf32>) {opID = 1 : i32, resultID = 0 : i32}
 // CHECK-NEXT: probe.report
 // CHECK-NEXT: return
+
+// CHECK-LABEL: func.func @non_f32_result
+func.func @non_f32_result(%arg0: tensor<2x2xi32>, %arg1: tensor<2x2xi32>) -> tensor<2x2xi32> {
+  %init = tensor.empty() : tensor<2x2xi32>
+  %0 = linalg.add {proteus.lattice = [{size = 2 : i64, words = array<i64: 3>}, {size = 2 : i64, words = array<i64: 3>}]}
+       ins(%arg0, %arg1 : tensor<2x2xi32>, tensor<2x2xi32>) outs(%init : tensor<2x2xi32>) -> tensor<2x2xi32>
+  return %0 : tensor<2x2xi32>
+}
+// CHECK-NEXT: tensor.empty
+// CHECK-NEXT: linalg.add
+// CHECK-NEXT: probe.report
+// CHECK-NEXT: return
