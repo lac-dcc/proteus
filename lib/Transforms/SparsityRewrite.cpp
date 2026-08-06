@@ -57,8 +57,4 @@ void SparsityRewritePass::runOnOperation() {
   }
 }
 
-std::unique_ptr<mlir::Pass> createSparsityRewritePass() {
-  return std::make_unique<SparsityRewritePass>();
-}
-
 } // namespace proteus

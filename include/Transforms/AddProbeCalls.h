@@ -37,6 +37,4 @@ struct AddProbeCallsPass : public mlir::OperationPass<mlir::func::FuncOp> {
   }
 };
 
-std::unique_ptr<mlir::Pass> createAddProbeCallsPass();
-
 } // namespace proteus

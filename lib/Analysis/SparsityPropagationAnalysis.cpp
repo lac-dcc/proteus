@@ -105,7 +105,4 @@ void SparsityPropagationAnalysis::runOnOperation() {
   }
 }
 
-std::unique_ptr<mlir::Pass> createSparsityPropagationAnalysis() {
-  return std::make_unique<SparsityPropagationAnalysis>();
-}
 } // namespace proteus

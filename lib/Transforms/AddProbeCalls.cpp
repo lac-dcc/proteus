@@ -52,8 +52,4 @@ void AddProbeCallsPass::runOnOperation() {
   }
 }
 
-std::unique_ptr<mlir::Pass> createAddProbeCallsPass() {
-  return std::make_unique<AddProbeCallsPass>();
-}
-
 } // namespace proteus
