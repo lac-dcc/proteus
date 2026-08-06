@@ -8,6 +8,8 @@ import subprocess
 import sys
 import tempfile
 
+from scipy import stats
+
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import check_oracle_soundness as oracle  # noqa: E402
 
@@ -94,7 +96,7 @@ def timed_runs(
     rewrite: str | None = None,
     warmup: int = 1,
     runs: int = 5,
-) -> tuple[float, float] | None:
+) -> tuple[float, float, list[float]] | None:
     name = os.path.splitext(os.path.basename(model_path))[0]
     text = open(model_path).read().rstrip()
     m = ENTRY_FUNC_RE.search(text)
@@ -156,12 +158,18 @@ def timed_runs(
 
         mean = statistics.mean(samples)
         stddev = statistics.stdev(samples) if len(samples) > 1 else 0.0
-        return mean, stddev
+        return mean, stddev, samples
+
+
+def ttest(samples_a: list[float], samples_b: list[float]) -> float | None:
+    if len(samples_a) < 2 or len(samples_b) < 2:
+        return None
+    return stats.ttest_ind(samples_a, samples_b, equal_var=False).pvalue
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("name", help="model name (without .mlir)")
+    parser.add_argument("name", nargs="?", help="model name (without .mlir)")
     parser.add_argument(
         "--seed-lattice",
         default="",
@@ -179,7 +187,23 @@ def main():
     parser.add_argument(
         "--runs", type=int, default=10, help="timed run count (default: 5)"
     )
+    parser.add_argument(
+        "--pvalue",
+        nargs=2,
+        metavar=("SAMPLES_A", "SAMPLES_B"),
+        help="print a Welch's t-test p-value for two comma-separated sample lists and exit",
+    )
     args = parser.parse_args()
+
+    if args.pvalue:
+        samples_a = [float(v) for v in args.pvalue[0].split(",") if v]
+        samples_b = [float(v) for v in args.pvalue[1].split(",") if v]
+        p = ttest(samples_a, samples_b)
+        print("n/a" if p is None else f"{p:.4g}")
+        return
+
+    if not args.name:
+        parser.error("the following arguments are required: name")
 
     mlir_opt = llvm_tool("mlir-opt")
     mlir_runner = llvm_tool("mlir-runner")
@@ -196,8 +220,9 @@ def main():
     )
     if result is None:
         sys.exit("error: benchmarking failed")
-    mean, stddev = result
-    print(f"{mean:.6f}\t{stddev:.6f}")
+    mean, stddev, samples = result
+    sample_str = ",".join(f"{s:.6f}" for s in samples)
+    print(f"{mean:.6f}\t{stddev:.6f}\t{sample_str}")
 
 
 if __name__ == "__main__":
