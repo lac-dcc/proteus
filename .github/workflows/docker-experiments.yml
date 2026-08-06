@@ -13,10 +13,14 @@ jobs:
         with:
           submodules: true
 
-      - name: Seed mlir_out_zerobias with a tiny model
-        run: |
-          mkdir -p mlir_out_zerobias
-          cp tests/docker/mlir_out_zerobias_placeholder.mlir mlir_out_zerobias/
+      - name: Seed mlir_out_zerobias with microbenchmarks
+        run: scripts/generate_microbenchmarks.sh
 
-      - name: Run experiments in Docker
-        run: make experiments LATTICE_FILTER=banded-64
+      - name: Run zero-counts in Docker
+        run: make zero-counts LATTICE_FILTER=banded-64
+
+      - name: Run timings in Docker
+        run: make timings LATTICE_FILTER=banded-64
+
+      - name: Run oracles in Docker
+        run: make oracles LATTICE_FILTER=banded-64
