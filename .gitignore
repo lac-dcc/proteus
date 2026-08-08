@@ -50,6 +50,8 @@ docs/
 *.md
 *.txt
 *.tsv
+*.csv
+*.png
 
 # Tests related files
 *.profraw
