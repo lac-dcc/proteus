@@ -47,16 +47,23 @@ BARE_CALL_TEMPLATE = """  func.func @main() {{
 }}
 """
 
-NANOTIME_CALL_TEMPLATE = """  func.func private @nanoTime() -> i64 attributes {{ llvm.emit_c_interface }}
+NANOTIME_LOOP_TEMPLATE = """  func.func private @nanoTime() -> i64 attributes {{ llvm.emit_c_interface }}
   func.func private @printI64(i64)
+  func.func private @printNewline()
 
   func.func @main() {{
 {input_ops}
-    %t0 = call @nanoTime() : () -> i64
-    %out = call @{func_name}({input_value}) : (tensor<{in_shape}xf32>) -> tensor<{out_shape}xf32>
-    %t1 = call @nanoTime() : () -> i64
-    %delta = arith.subi %t1, %t0 : i64
-    call @printI64(%delta) : (i64) -> ()
+    %c0 = arith.constant 0 : index
+    %c1 = arith.constant 1 : index
+    %cN = arith.constant {iterations} : index
+    scf.for %i = %c0 to %cN step %c1 {{
+      %t0 = func.call @nanoTime() : () -> i64
+      %out = func.call @{func_name}({input_value}) : (tensor<{in_shape}xf32>) -> tensor<{out_shape}xf32>
+      %t1 = func.call @nanoTime() : () -> i64
+      %delta = arith.subi %t1, %t0 : i64
+      func.call @printI64(%delta) : (i64) -> ()
+      func.call @printNewline() : () -> ()
+    }}
     return
   }}
 }}
@@ -120,12 +127,13 @@ def timed_runs(
         text = rewritten.stdout.rstrip()
 
     input_ops, input_value = oracle.build_seeded_input_ops(in_shape, seed_lattice)
-    wrapped = text[: text.rfind("}")] + NANOTIME_CALL_TEMPLATE.format(
+    wrapped = text[: text.rfind("}")] + NANOTIME_LOOP_TEMPLATE.format(
         in_shape=in_shape,
         out_shape=out_shape,
         func_name=func_name,
         input_ops=input_ops,
         input_value=input_value,
+        iterations=warmup + runs,
     )
 
     with tempfile.TemporaryDirectory(prefix=f"proteus-timed-{name}-") as tmpdir:
@@ -140,21 +148,18 @@ def timed_runs(
         if opt.returncode != 0:
             return None
 
-        samples = []
-        for i in range(warmup + runs):
-            try:
-                run = subprocess.run(
-                    [mlir_runner, lowered_path, f"--shared-libs={shared_libs}",
-                     "--entry-point-result=void", mlir_runner_opt_flag()],
-                    capture_output=True, text=True, timeout=TIMEOUT,
-                )
-            except subprocess.TimeoutExpired:
-                return None
-            m = re.search(r"-?\d+", run.stdout.strip())
-            if run.returncode != 0 or not m:
-                return None
-            if i >= warmup:
-                samples.append(int(m.group(0)) / 1e9)
+        try:
+            run = subprocess.run(
+                [mlir_runner, lowered_path, f"--shared-libs={shared_libs}",
+                 "--entry-point-result=void", mlir_runner_opt_flag()],
+                capture_output=True, text=True, timeout=TIMEOUT,
+            )
+        except subprocess.TimeoutExpired:
+            return None
+        deltas = [int(v) for v in re.findall(r"-?\d+", run.stdout)]
+        if run.returncode != 0 or len(deltas) != warmup + runs:
+            return None
+        samples = [d / 1e9 for d in deltas[warmup:]]
 
         mean = statistics.mean(samples)
         stddev = statistics.stdev(samples) if len(samples) > 1 else 0.0
