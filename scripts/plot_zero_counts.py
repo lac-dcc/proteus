@@ -102,6 +102,7 @@ def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
 
     ax.set_xticks(x)
     ax.set_xticklabels(models, rotation=30, ha="right", fontsize=9)
+    ax.grid(axis="y")
 
     for spine in ["top", "right", "left"]:
         ax.spines[spine].set_visible(False)

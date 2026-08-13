@@ -1,10 +1,10 @@
-import csv
 from collections import defaultdict
 from pathlib import Path
+import csv
 
 import matplotlib.pyplot as plt
 
-LATTICE_ORDER = [
+LATTICE_ORDER: list[str] = [
     "banded-16",
     "banded-32",
     "banded-64",
@@ -13,81 +13,82 @@ LATTICE_ORDER = [
     "all-sparse",
 ]
 
-LATTICE_COLORS = [
-    "#86b6ef",
-    "#5598e7",
-    "#2a78d6",
-    "#1c5cab",
-    "#104281",
-    "#0d366b",
-]
-
-MATMUL_COLOR = "#eb6834"
-
-GRID_COLOR = "#e1e0d9"
-AXIS_COLOR = "#c3c2b7"
-TEXT_MUTED = "#898781"
-TEXT_PRIMARY = "#0b0b0b"
-SURFACE = "#fcfcfb"
+LATTICE_COLORS: dict[str, str] = {
+    "banded-16": "cyan",
+    "banded-32": "darkturquoise",
+    "banded-64": "cadetblue",
+    "banded-128": "steelblue",
+    "banded-192": "royalblue",
+    "all-sparse": "navy",
+}
 
 
-def load_data(csv_path: Path) -> tuple[dict[str, dict[str, float]], dict[str, float]]:
-    breakoff: dict[str, dict[str, float]] = defaultdict(dict)
-    matmul: dict[str, float] = {}
-    with csv_path.open(newline="") as f:
+def load_data(path: Path) -> tuple[defaultdict, dict]:
+    breakoffs = defaultdict(dict)
+    matmuls = {}
+
+    with path.open(newline="") as f:
         for row in csv.DictReader(f):
-            if row["model"].startswith("mbench_") or row["lattice"] not in LATTICE_ORDER:
+            if row["model"].startswith("mbench_") \
+                    or row["lattice"] not in LATTICE_ORDER:
                 continue
-            breakoff[row["lattice"]][row["model"]] = float(row["breakoff_pct"])
+
+            breakoffs[row["lattice"]][row["model"]] = \
+                float(row["breakoff_pct"])
+
             if row["first_matmul_pct"] != "None":
-                matmul[row["model"]] = float(row["first_matmul_pct"])
-    return breakoff, matmul
+                matmuls[row["model"]] = \
+                    float(row["first_matmul_pct"])
+
+    return breakoffs, matmuls
 
 
-def plot(breakoff: dict[str, dict[str, float]], matmul: dict[str, float], out_path: Path) -> None:
-    models = sorted({m for per_model in breakoff.values() for m in per_model})
-    y = range(len(models))
+def plot(breakoffs: defaultdict, matmuls: defaultdict, out_path: Path) -> None:
+    models = sorted({m for per_model in breakoffs.values() for m in per_model})
+    x = [i for i in range(len(models))]
 
-    fig, ax = plt.subplots(figsize=(9, 0.5 * len(models) + 2), facecolor=SURFACE)
-    ax.set_facecolor(SURFACE)
+    fig, ax = plt.subplots(figsize=(9, 0.5 * len(models) + 2))
 
-    for lattice, color in reversed(list(zip(LATTICE_ORDER, LATTICE_COLORS))):
-        values = [breakoff[lattice].get(m, 0) for m in models]
-        ax.barh(list(y), values, height=0.6, color=color, label=lattice, zorder=2)
+    for lattice in reversed(LATTICE_ORDER):
+        values = [breakoffs[lattice][m] for m in models]
+        ax.barh(x, values, color=LATTICE_COLORS[lattice],
+                label=lattice, zorder=2)
 
-    matmul_y = [i for i, m in enumerate(models) if m in matmul]
-    matmul_x = [matmul[m] for m in models if m in matmul]
-    ax.scatter(
-        matmul_x, matmul_y, marker="|", s=200, linewidths=1.5,
-        color=MATMUL_COLOR, label="1st matmul", zorder=3,
-    )
+    matmul_y = [i for i, m in enumerate(models) if m in matmuls]
+    matmul_x = [matmuls[m] for m in models if m in matmuls]
 
-    ax.set_yticks(list(y))
-    ax.set_yticklabels(models, fontsize=9, color=TEXT_MUTED)
+    ax.scatter(matmul_x, matmul_y, marker="|", s=200, linewidths=1.5,
+               label="1st matmul", zorder=3)
+
+    ax.set_yticks(x)
+    ax.set_yticklabels(models, fontsize=9)
     ax.invert_yaxis()
     ax.set_xlim(0, 100)
-    ax.tick_params(axis="x", labelsize=9, colors=TEXT_MUTED)
-    ax.grid(axis="x", color=GRID_COLOR, linewidth=0.8, zorder=0)
+    ax.tick_params(axis="x", labelsize=9)
     ax.set_axisbelow(True)
-    for spine in ("top", "right", "left"):
-        ax.spines[spine].set_visible(False)
-    ax.spines["bottom"].set_color(AXIS_COLOR)
+    ax.grid(axis="x")
 
-    ax.set_xlabel("Survived Sparsity Depth in IR Percentage", color=TEXT_PRIMARY)
+    for spine in ["top", "bottom", "right"]:
+        ax.spines[spine].set_visible(False)
+
     ax.set_title(
-        "Depth of Survived Sparsity in the IR as seeded lattice grows",
-        color=TEXT_PRIMARY,
+        "Depth of Survived Sparsity in the IR as seeded lattice grows"
     )
+
     handles, labels = ax.get_legend_handles_labels()
+
     ax.legend(
-        reversed(handles), reversed(labels),
-        frameon=False, loc="upper left",
-        bbox_to_anchor=(1.01, 1.0),
+        reversed(handles),
+        reversed(labels),
+        loc="upper center",
+        frameon=False,
+        ncols=4,
+        bbox_to_anchor=(0.5, -0.1)
     )
 
     fig.tight_layout()
-    fig.savefig(out_path, dpi=150, facecolor=SURFACE)
+    fig.savefig(out_path, dpi=150)
 
 
-breakoff, matmul = load_data(Path("csv_data/zero-counts.csv"))
-plot(breakoff, matmul, Path("assets/breakoff_growth.png"))
+breakoffs, matmuls = load_data(Path("csv_data/zero-counts.csv"))
+plot(breakoffs, matmuls, Path("assets/sparsity_survivability.png"))
