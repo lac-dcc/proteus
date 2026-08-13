@@ -1,11 +1,12 @@
-import csv
 from collections import defaultdict
 from pathlib import Path
+import csv
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
-LATTICE_ORDER = [
+
+LATTICE_ORDER: list[str] = [
     "banded-16",
     "banded-32",
     "banded-64",
@@ -14,90 +15,123 @@ LATTICE_ORDER = [
     "all-sparse",
 ]
 
-LATTICE_COLORS = [
-    "#86b6ef",
-    "#5598e7",
-    "#2a78d6",
-    "#1c5cab",
-    "#104281",
-    "#0d366b",
+LATTICE_COLORS: dict[str, str] = {
+    "banded-16": "cyan",
+    "banded-32": "darkturquoise",
+    "banded-64": "cadetblue",
+    "banded-128": "steelblue",
+    "banded-192": "royalblue",
+    "all-sparse": "navy",
+}
+
+GEN_COLORS: dict[str, str] = {
+    "banded-16": "papayawhip",
+    "banded-32": "moccasin",
+    "banded-64": "wheat",
+    "banded-128": "tan",
+    "banded-192": "orange",
+    "all-sparse": "goldenrod",
+}
+
+INITIAL_LATTICES: dict[str, int] = {
+    "banded-16": 32,
+    "banded-32": 64,
+    "banded-64": 128,
+    "banded-128": 236,
+    "banded-192": 384,
+    "all-sparse": 448,
+}
+
+MODELS = [
+        "alexnet",
+        "googlenet",
+        "inception_v3",
+        "mnasnetl_0",
+
+
+
 ]
 
-FILL_PAD_BROADCAST_CONST_COLORS = [
-    "#f3a282",
-    "#ee7c4f",
-    "#e85318",
-    "#b54012",
-    "#842f0d",
-    "#6d270b",
-]
 
-GRID_COLOR = "#e1e0d9"
-AXIS_COLOR = "#c3c2b7"
-TEXT_MUTED = "#898781"
-TEXT_PRIMARY = "#0b0b0b"
-SURFACE = "#fcfcfb"
+def load_data(path: Path) -> tuple[defaultdict, defaultdict]:
+    totals = defaultdict(dict)
+    gen_totals = defaultdict(dict)
 
-
-def load_totals(csv_path: Path) -> tuple[dict[str, dict[str, int]], dict[str, dict[str, int]]]:
-    totals: dict[str, dict[str, int]] = defaultdict(dict)
-    fill_pad_broadcast_const: dict[str, dict[str, int]] = defaultdict(dict)
-    with csv_path.open(newline="") as f:
+    with path.open(newline="") as f:
         for row in csv.DictReader(f):
-            if row["model"].startswith("mbench_") or row["lattice"] not in LATTICE_ORDER:
+            if row["model"].startswith("mbench_") \
+                    or row["lattice"] not in LATTICE_ORDER:
                 continue
-            totals[row["lattice"]][row["model"]] = int(row["total"])
-            fill_pad_broadcast_const[row["lattice"]][row["model"]] = int(row["fill_pad_broadcast_const"])
-    return totals, fill_pad_broadcast_const
+
+            totals[row["lattice"]][row["model"]] = int(row["total"]) \
+                - INITIAL_LATTICES[row["lattice"]]
+            gen_totals[row["lattice"]][row["model"]] = \
+                int(row["fill_pad_broadcast_const"])
+
+        return totals, gen_totals
 
 
-def plot(
-    totals: dict[str, dict[str, int]],
-    fill_pad_broadcast_const: dict[str, dict[str, int]],
-    out_path: Path,
-) -> None:
+def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
     models = sorted({m for per_model in totals.values() for m in per_model})
-    x = range(len(models))
-    total_x = [xi - 0.17 for xi in x]
-    fill_pad_broadcast_const_x = [xi + 0.17 for xi in x]
+    x = [i for i in range(len(models))]
+    totals_x = [xi - 0.17 for xi in x]
+    gen_totals_x = [xi + 0.17 for xi in x]
 
-    fig, ax = plt.subplots(figsize=(0.8 * len(models) + 3, 6), facecolor=SURFACE)
-    ax.set_facecolor(SURFACE)
+    fig, ax = plt.subplots(figsize=(0.8 * len(models) + 3, 6))
 
-    for lattice, color in reversed(list(zip(LATTICE_ORDER, LATTICE_COLORS))):
-        values = [totals[lattice].get(m, 0) for m in models]
-        ax.bar(total_x, values, width=0.3, color=color, label=lattice, zorder=2)
+    for lattice in reversed(LATTICE_ORDER):
+        values = [totals[lattice][m] for m in models]
+        gen_values = [gen_totals[lattice][m] for m in models]
 
-    for lattice, color in reversed(list(zip(LATTICE_ORDER, FILL_PAD_BROADCAST_CONST_COLORS))):
-        values = [fill_pad_broadcast_const[lattice].get(m, 0) for m in models]
-        ax.bar(fill_pad_broadcast_const_x, values, width=0.3, color=color, zorder=2)
+        ax.bar(
+            totals_x,
+            values,
+            color=LATTICE_COLORS[lattice],
+            label=lattice,
+            width=0.3,
+            zorder=2
+        )
 
-    ax.set_xticks(list(x))
-    ax.set_xticklabels(models, rotation=45, ha="right", fontsize=9, color=TEXT_MUTED)
-    ax.tick_params(axis="y", labelsize=9, colors=TEXT_MUTED)
-    ax.grid(axis="y", color=GRID_COLOR, linewidth=0.8, zorder=0)
-    ax.set_axisbelow(True)
-    for spine in ("top", "right", "left"):
+        ax.bar(
+            gen_totals_x,
+            gen_values,
+            color=GEN_COLORS[lattice],
+            width=0.3,
+            zorder=2
+        )
+
+    ax.set_xticks(x)
+    ax.set_xticklabels(models, rotation=30, ha="right", fontsize=9)
+
+    for spine in ["top", "right", "left"]:
         ax.spines[spine].set_visible(False)
-    ax.spines["bottom"].set_color(AXIS_COLOR)
 
-    ax.set_ylabel("Sparse Fiber Count", color=TEXT_PRIMARY)
+    ax.set_ylabel("Sparse Fiber Count")
     ax.set_title(
-        "Total inferred sparse fibers in the IR as seeded lattice grows",
-        color=TEXT_PRIMARY,
+        "Total inferred sparse fibers in the IR as seed lattice grows"
     )
+
     handles, labels = ax.get_legend_handles_labels()
-    handles = list(reversed(handles)) + [Patch(color=FILL_PAD_BROADCAST_CONST_COLORS[2], label="Fill+Pad+Broadcast+Const")]
-    labels = list(reversed(labels)) + ["Fill+Pad+Broadcast+Const"]
+    handles = list(reversed(handles)) \
+        + [Patch(
+            color=GEN_COLORS["banded-32"],
+            label="Sparsity Generating Ops"
+           )]
+
+    labels = list(reversed(labels)) + ["Sparsity Generating Ops"]
+
     ax.legend(
-        handles, labels,
-        title="Lattice Seed (Total)", frameon=False, loc="upper left",
-        bbox_to_anchor=(1.01, 1.0),
+        handles,
+        labels,
+        loc="upper center",
+        frameon=False,
+        ncols=7,
+        bbox_to_anchor=(0.5, -0.2)
     )
 
     fig.tight_layout()
-    fig.savefig(out_path, dpi=150, facecolor=SURFACE)
+    fig.savefig(out_path, dpi=150)
 
 
-totals, fill_pad_broadcast_const = load_totals(Path("csv_data/zero-counts.csv"))
-plot(totals, fill_pad_broadcast_const, Path("assets/total_sparsity_growth.png"))
+totals, gen_totals = load_data(Path("csv_data/zero-counts.csv"))
+plot(totals, gen_totals, Path("assets/zero-counts.png"))
