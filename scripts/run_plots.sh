@@ -12,6 +12,10 @@ if [ ! -f csv_data/mbench-timings.csv ]; then \
     NO_O3=1 \
     ./scripts/run_timings.sh --csv > csv_data/mbench-timings.csv; \
 fi
+if [ ! -f csv_data/timings.csv ]; then \
+    LATTICE_FILTER=banded-16,banded-32,banded-64,banded-128,banded-192,all-sparse \
+    ./scripts/run_timings.sh --csv > csv_data/timings.csv; \
+fi
 python3 scripts/plot_breakoff.py
 python3 scripts/plot_zero_counts.py
 python3 scripts/plot_mbench_timings.py
