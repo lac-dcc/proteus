@@ -15,7 +15,6 @@ import check_oracle_soundness as oracle  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MLIR_OUT_DIR = os.path.join(ROOT, "mlir_out_zerobias")
-TIMEOUT = 300
 
 LOWERING_PIPELINE = (
     "builtin.module("
@@ -148,14 +147,11 @@ def timed_runs(
         if opt.returncode != 0:
             return None
 
-        try:
-            run = subprocess.run(
-                [mlir_runner, lowered_path, f"--shared-libs={shared_libs}",
-                 "--entry-point-result=void", mlir_runner_opt_flag()],
-                capture_output=True, text=True, timeout=TIMEOUT,
-            )
-        except subprocess.TimeoutExpired:
-            return None
+        run = subprocess.run(
+            [mlir_runner, lowered_path, f"--shared-libs={shared_libs}",
+             "--entry-point-result=void", mlir_runner_opt_flag()],
+            capture_output=True, text=True,
+        )
         deltas = [int(v) for v in re.findall(r"-?\d+", run.stdout)]
         if run.returncode != 0 or len(deltas) != warmup + runs:
             return None
