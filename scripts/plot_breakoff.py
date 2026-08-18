@@ -47,12 +47,12 @@ def plot(breakoffs: defaultdict, matmuls: defaultdict, out_path: Path) -> None:
     models = sorted({m for per_model in breakoffs.values() for m in per_model})
     x = [i for i in range(len(models))]
 
-    fig, ax = plt.subplots(figsize=(9, 0.5 * len(models) + 2))
+    fig, ax = plt.subplots(figsize=(12, 12))
 
     for lattice in reversed(LATTICE_ORDER):
         values = [breakoffs[lattice][m] for m in models]
         ax.barh(x, values, color=LATTICE_COLORS[lattice],
-                label=lattice, zorder=2)
+                label=lattice, height=0.8, zorder=2)
 
     matmul_y = [i for i, m in enumerate(models) if m in matmuls]
     matmul_x = [matmuls[m] for m in models if m in matmuls]

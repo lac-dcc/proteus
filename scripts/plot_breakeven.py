@@ -56,7 +56,7 @@ def plot(runtimes: defaultdict, out_path: Path) -> None:
     models = sorted(runtimes)
     x = [i for i in range(len(models))]
 
-    fig, ax = plt.subplots(figsize=(9, 0.5 * len(models) + 2))
+    fig, ax = plt.subplots(figsize=(12, 12))
 
     rewritten_x = [xi - 0.17 for xi in x]
     baseline_x = [xi + 0.17 for xi in x]
