@@ -42,16 +42,6 @@ INITIAL_LATTICES: dict[str, int] = {
     "all-sparse": 448,
 }
 
-MODELS = [
-        "alexnet",
-        "googlenet",
-        "inception_v3",
-        "mnasnetl_0",
-
-
-
-]
-
 
 def load_data(path: Path) -> tuple[defaultdict, defaultdict]:
     totals = defaultdict(dict)
@@ -73,46 +63,52 @@ def load_data(path: Path) -> tuple[defaultdict, defaultdict]:
 
 def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
     models = sorted({m for per_model in totals.values() for m in per_model})
-    x = [i for i in range(len(models))]
-    totals_x = [xi - 0.17 for xi in x]
-    gen_totals_x = [xi + 0.17 for xi in x]
+    middle = len(models) // 2
+    list_of_models = [models[:middle], models[middle:]]
 
-    fig, ax = plt.subplots(figsize=(0.8 * len(models) + 3, 6))
+    fig, axes = plt.subplots(2, 1, figsize=(16, 9))
 
-    for lattice in reversed(LATTICE_ORDER):
-        values = [totals[lattice][m] for m in models]
-        gen_values = [gen_totals[lattice][m] for m in models]
+    for i, models in enumerate(list_of_models):
+        x = [i for i in range(len(models))]
+        totals_x = [xi - 0.17 for xi in x]
+        gen_totals_x = [xi + 0.17 for xi in x]
 
-        ax.bar(
-            totals_x,
-            values,
-            color=LATTICE_COLORS[lattice],
-            label=lattice,
-            width=0.3,
-            zorder=2
-        )
+        for lattice in reversed(LATTICE_ORDER):
 
-        ax.bar(
-            gen_totals_x,
-            gen_values,
-            color=GEN_COLORS[lattice],
-            width=0.3,
-            zorder=2
-        )
+            values = [totals[lattice][m] for m in models]
+            gen_values = [gen_totals[lattice][m] for m in models]
 
-    ax.set_xticks(x)
-    ax.set_xticklabels(models, rotation=30, ha="right", fontsize=9)
-    ax.grid(axis="y")
+            axes[i].bar(
+                totals_x,
+                values,
+                color=LATTICE_COLORS[lattice],
+                label=lattice,
+                width=0.3,
+                zorder=2
+            )
 
-    for spine in ["top", "right", "left"]:
-        ax.spines[spine].set_visible(False)
+            axes[i].bar(
+                gen_totals_x,
+                gen_values,
+                color=GEN_COLORS[lattice],
+                width=0.3,
+                zorder=2
+            )
 
-    ax.set_ylabel("Sparse Fiber Count")
-    ax.set_title(
+        axes[i].set_xticks(x)
+        axes[i].set_xticklabels(models, rotation=30, ha="right", fontsize=9)
+        axes[i].grid(axis="y")
+
+        for spine in ["top", "right", "left"]:
+            axes[i].spines[spine].set_visible(False)
+
+        axes[i].set_ylabel("Sparse Fiber Count")
+
+    axes[0].set_title(
         "Total inferred sparse fibers in the IR as seed lattice grows"
     )
 
-    handles, labels = ax.get_legend_handles_labels()
+    handles, labels = axes[0].get_legend_handles_labels()
     handles = list(reversed(handles)) \
         + [Patch(
             color=GEN_COLORS["banded-32"],
@@ -121,7 +117,7 @@ def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
 
     labels = list(reversed(labels)) + ["Sparsity Generating Ops"]
 
-    ax.legend(
+    axes[1].legend(
         handles,
         labels,
         loc="upper center",
