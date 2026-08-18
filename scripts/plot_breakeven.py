@@ -124,6 +124,8 @@ def create_table(runtimes: defaultdict, out_path: Path) -> None:
 
         f.write(r"""\bottomrule
                     \end{tabular}}
+                    \caption{This table showcases runtimes of various models under a seed lattice element that is singularly banded across 192 slices on both spatial dimensions.}
+                    \label{tab:runtimes}
                     \end{table}""")
 
 
