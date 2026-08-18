@@ -157,6 +157,9 @@ make timings
 # 4. Build Proteus in Release mode inside a Docker container and run the
 #    oracles checker script over every model in mlir_out_zerobias/ across different lattices.
 make oracles
+
+# 5. Build Proteus in Release mode inside a Docker container and run the plotting script
+make plots
 ```
 
 To splat the constants within the dataset for faster conversions as well as lexing and parsing, you can use the `SPLAT_WEIGHTS` variable like so:
@@ -170,6 +173,7 @@ To filter a benchmark on specific lattices you can use the `LATTICE_FILTER` vari
 ```bash
 # make <benchmark-option> LATTICE_FILTER=banded-64,all-sparse
 make oracles LATTICE_FILTER=banded-64,all-sparse
+
 ```
 
 You can also filter by model with `MODEL_FILTER`, and you can deactivate `mlir-runner`'s `--O3` option with `NO_O3=1` for those benchmarks that have a fairly fast runtime.
