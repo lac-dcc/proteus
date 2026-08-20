@@ -85,6 +85,9 @@ timings:
 oracles:
 	docker compose -f docker/docker-compose.yml run --build --rm -e LATTICE_FILTER=$(LATTICE_FILTER) -e MODEL_FILTER=$(MODEL_FILTER) -e NO_O3=$(NO_O3) oracles
 
+plots:
+	docker compose -f docker/docker-compose.yml run --build --rm plots
+
 coverage-check:
 	python3 scripts/check_forward_pass_coverage.py
 

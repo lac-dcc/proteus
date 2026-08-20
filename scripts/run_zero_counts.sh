@@ -97,8 +97,8 @@ run_forward_stage() {
   "$BINARY" "--spa-analysis=print-zeros=true pass-stage=forward$(seed_opt "$attr")" "$model" 2>&1 >/dev/null
 }
 
-fill_and_pad_from_output() {
-  { "$GREP" -A1 -E '\[(linalg\.fill|tensor\.pad)\]' || true; } \
+fill_pad_broadcast_const_from_output() {
+  { "$GREP" -A1 -E '\[(linalg\.fill|tensor\.pad|linalg\.broadcast|arith\.constant)\]' || true; } \
     | { "$GREP" -oP 'total: \K[0-9]+' || true; } \
     | awk '{s+=$1} END{print s+0}'
 }
@@ -151,7 +151,7 @@ for model in "${MODELS[@]}"; do
 done
 
 if [[ "$CSV_OUTPUT" == "true" ]]; then
-  echo "lattice,model,seed,fill_pad,forward,lateral,backward,total,breakoff_pct,first_matmul_pct,matmul_rw,conv_rw,depthwise_rw,poolsum_rw,poolmax_rw"
+  echo "lattice,model,seed,fill_pad_broadcast_const,forward,lateral,backward,total,breakoff_pct,first_matmul_pct,matmul_rw,conv_rw,depthwise_rw,poolsum_rw,poolmax_rw"
 fi
 
 for li in "${!LATTICE_NAMES[@]}"; do
@@ -161,7 +161,7 @@ for li in "${!LATTICE_NAMES[@]}"; do
   if [[ "$CSV_OUTPUT" != "true" ]]; then
     echo "=== seed-lattice: $lattice_name ==="
     printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
-      "Model" "Seed" "Fill+Pad" "Forward" "Lateral" "Backward" "Total" \
+      "Model" "Seed" "Fill+Pad+Bc+C" "Forward" "Lateral" "Backward" "Total" \
       "Breakoff" "1st MM" "MM RW" "Cnv RW" "DW RW" "PSum RW" "PMax RW"
     printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
       "-----" "----" "--------" "-------" "-------" "--------" "-----" \
@@ -177,7 +177,7 @@ for li in "${!LATTICE_NAMES[@]}"; do
     after_seed=$(zeros_for_stage    "$model" seed    "$lattice_attr")
     forward_out=$(run_forward_stage "$model" "$lattice_attr")
     after_forward=$(echo "$forward_out" | "$GREP" -oP 'Grand total: \K[0-9]+')
-    fill_pad=$(echo "$forward_out" | fill_and_pad_from_output)
+    fill_pad_broadcast_const=$(echo "$forward_out" | fill_pad_broadcast_const_from_output)
     after_lateral=$(zeros_for_stage "$model" lateral  "$lattice_attr")
     after_backward=$(zeros_for_stage "$model" backward "$lattice_attr")
 
@@ -195,11 +195,11 @@ for li in "${!LATTICE_NAMES[@]}"; do
 
     if [[ "$CSV_OUTPUT" == "true" ]]; then
       printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
-        "$lattice_name" "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
+        "$lattice_name" "$name" "$delta_seed" "$fill_pad_broadcast_const" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
         "$breakoff_pct" "$matmul_pct" "$matmul_rw" "$conv_rw" "$depth_rw" "$pool_rw" "$poolmax_rw"
     else
       printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
-        "$name" "$delta_seed" "$fill_pad" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
+        "$name" "$delta_seed" "$fill_pad_broadcast_const" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
         "$breakoff_str" "$matmul_str" "$matmul_rw" "$conv_rw" "$depth_rw" "$pool_rw" "$poolmax_rw"
     fi
   done
