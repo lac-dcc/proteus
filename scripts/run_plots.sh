@@ -20,3 +20,4 @@ python3 scripts/plot_breakoff.py
 python3 scripts/plot_breakeven.py
 python3 scripts/plot_zero_counts.py
 python3 scripts/plot_mbench_timings.py
+python3 scripts/plot_runtimes.py
