@@ -52,6 +52,7 @@ docs/
 *.tsv
 *.csv
 *.png
+*.tex
 
 # Tests related files
 *.profraw
