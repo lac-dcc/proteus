@@ -66,7 +66,7 @@ def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
     middle = len(models) // 2
     list_of_models = [models[:middle], models[middle:]]
 
-    fig, axes = plt.subplots(2, 1, figsize=(16, 9))
+    fig, axes = plt.subplots(2, 1, figsize=(18, 12))
 
     for i, models in enumerate(list_of_models):
         x = [i for i in range(len(models))]
@@ -96,16 +96,19 @@ def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
             )
 
         axes[i].set_xticks(x)
-        axes[i].set_xticklabels(models, rotation=30, ha="right", fontsize=9)
+        axes[i].set_yscale("log")
+        axes[i].set_xticklabels(models, rotation=30, ha="right", fontsize=19)
+        axes[i].tick_params(axis="y", labelsize=14)
         axes[i].grid(axis="y")
 
         for spine in ["top", "right", "left"]:
             axes[i].spines[spine].set_visible(False)
 
-        axes[i].set_ylabel("Sparse Fiber Count")
+        axes[i].set_ylabel("Sparse Fiber Count", fontsize=19)
 
     axes[0].set_title(
-        "Total inferred sparse fibers in the IR as seed lattice grows"
+        "Total inferred sparse fibers in the IR as seed lattice grows",
+        fontsize=25
     )
 
     handles, labels = axes[0].get_legend_handles_labels()
@@ -122,8 +125,9 @@ def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
         labels,
         loc="upper center",
         frameon=False,
-        ncols=7,
-        bbox_to_anchor=(0.5, -0.2)
+        ncols=4,
+        bbox_to_anchor=(0.5, -0.3),
+        fontsize=20
     )
 
     fig.tight_layout()
