@@ -92,6 +92,12 @@ zeros_for_stage() {
     | "$GREP" -oP 'Grand total: \K[0-9]+'
 }
 
+absolute_total_for_stage() {
+  local model="$1" stage="$2" attr="$3"
+  "$BINARY" "--spa-analysis=print-zeros=true pass-stage=$stage$(seed_opt "$attr")" "$model" 2>&1 >/dev/null \
+    | "$GREP" -oP 'Absolute total: \K[0-9]+'
+}
+
 run_forward_stage() {
   local model="$1" attr="$2"
   "$BINARY" "--spa-analysis=print-zeros=true pass-stage=forward$(seed_opt "$attr")" "$model" 2>&1 >/dev/null
@@ -151,7 +157,7 @@ for model in "${MODELS[@]}"; do
 done
 
 if [[ "$CSV_OUTPUT" == "true" ]]; then
-  echo "lattice,model,seed,fill_pad_broadcast_const,forward,lateral,backward,total,breakoff_pct,first_matmul_pct,matmul_rw,conv_rw,depthwise_rw,poolsum_rw,poolmax_rw"
+  echo "lattice,model,seed,fill_pad_broadcast_const,forward,lateral,backward,total,absolute_total,breakoff_pct,first_matmul_pct,matmul_rw,conv_rw,depthwise_rw,poolsum_rw,poolmax_rw"
 fi
 
 for li in "${!LATTICE_NAMES[@]}"; do
@@ -180,6 +186,7 @@ for li in "${!LATTICE_NAMES[@]}"; do
     fill_pad_broadcast_const=$(echo "$forward_out" | fill_pad_broadcast_const_from_output)
     after_lateral=$(zeros_for_stage "$model" lateral  "$lattice_attr")
     after_backward=$(zeros_for_stage "$model" backward "$lattice_attr")
+    absolute_total=$(absolute_total_for_stage "$model" backward "$lattice_attr")
 
     delta_seed=$((     after_seed ))
     delta_forward=$((  after_forward  - after_seed ))
@@ -194,8 +201,8 @@ for li in "${!LATTICE_NAMES[@]}"; do
     IFS='|' read -r matmul_rw conv_rw depth_rw pool_rw poolmax_rw <<< "$(rewrite_counts_for_model "$model" "$lattice_attr")"
 
     if [[ "$CSV_OUTPUT" == "true" ]]; then
-      printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
-        "$lattice_name" "$name" "$delta_seed" "$fill_pad_broadcast_const" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" \
+      printf "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n" \
+        "$lattice_name" "$name" "$delta_seed" "$fill_pad_broadcast_const" "$delta_forward" "$delta_lateral" "$delta_backward" "$after_backward" "$absolute_total" \
         "$breakoff_pct" "$matmul_pct" "$matmul_rw" "$conv_rw" "$depth_rw" "$pool_rw" "$poolmax_rw"
     else
       printf "%-25s %10s %12s %10s %10s %10s %10s | %9s %9s | %6s %6s %6s %7s %7s\n" \
