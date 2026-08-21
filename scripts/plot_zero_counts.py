@@ -5,7 +5,6 @@ import csv
 import matplotlib.pyplot as plt
 from matplotlib.patches import Patch
 
-
 LATTICE_ORDER: list[str] = [
     "banded-16",
     "banded-32",
@@ -43,9 +42,8 @@ INITIAL_LATTICES: dict[str, int] = {
 }
 
 
-def load_data(path: Path) -> tuple[defaultdict, defaultdict]:
-    totals = defaultdict(dict)
-    gen_totals = defaultdict(dict)
+def load_data(path: Path) -> tuple[defaultdict]:
+    totals = defaultdict(lambda: defaultdict(dict))
 
     with path.open(newline="") as f:
         for row in csv.DictReader(f):
@@ -53,21 +51,24 @@ def load_data(path: Path) -> tuple[defaultdict, defaultdict]:
                     or row["lattice"] not in LATTICE_ORDER:
                 continue
 
-            totals[row["lattice"]][row["model"]] = int(row["total"]) \
+            totals[row["lattice"]][row["model"]]["total"] = int(row["total"]) \
                 - INITIAL_LATTICES[row["lattice"]]
-            gen_totals[row["lattice"]][row["model"]] = \
+            totals[row["lattice"]][row["model"]]["gen_total"] = \
                 int(row["fill_pad_broadcast_const"])
+            totals[row["lattice"]][row["model"]]["abs_total"] = \
+                int(row["absolute_total"])
 
-        return totals, gen_totals
+        return totals
 
 
-def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
+def plot(total: defaultdict, out_path: Path) -> None:
     models = sorted({m for per_model in totals.values() for m in per_model})
     middle = len(models) // 2
     list_of_models = [models[:middle], models[middle:]]
 
     fig, axes = plt.subplots(2, 1, figsize=(18, 12))
 
+    total_marker = None
     for i, models in enumerate(list_of_models):
         x = [i for i in range(len(models))]
         totals_x = [xi - 0.17 for xi in x]
@@ -75,8 +76,8 @@ def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
 
         for lattice in reversed(LATTICE_ORDER):
 
-            values = [totals[lattice][m] for m in models]
-            gen_values = [gen_totals[lattice][m] for m in models]
+            values = [totals[lattice][m]["total"] for m in models]
+            gen_values = [totals[lattice][m]["gen_total"] for m in models]
 
             axes[i].bar(
                 totals_x,
@@ -94,6 +95,14 @@ def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
                 width=0.3,
                 zorder=2
             )
+
+        abs_values = [totals["banded-16"][m]["abs_total"] for m in models]
+        marker = axes[i].scatter(
+            x, abs_values, marker="_", s=800, linewidths=4,
+            color="black", zorder=3
+        )
+        if i == 0:
+            total_marker = marker
 
         axes[i].set_xticks(x)
         axes[i].set_yscale("log")
@@ -116,9 +125,10 @@ def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
         + [Patch(
             color=GEN_COLORS["banded-32"],
             label="Sparsity Generating Ops"
-           )]
+           ), total_marker]
 
-    labels = list(reversed(labels)) + ["Sparsity Generating Ops"]
+    labels = list(reversed(labels)) \
+        + ["Sparsity Generating Ops", "Total Fiber Count"]
 
     axes[1].legend(
         handles,
@@ -134,5 +144,5 @@ def plot(total: defaultdict, gen_totals: defaultdict, out_path: Path) -> None:
     fig.savefig(out_path, dpi=150)
 
 
-totals, gen_totals = load_data(Path("csv_data/zero-counts.csv"))
-plot(totals, gen_totals, Path("assets/zero-counts.png"))
+totals = load_data(Path("csv_data/zero-counts.csv"))
+plot(totals, Path("assets/zero-counts.png"))
