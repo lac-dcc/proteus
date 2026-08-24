@@ -26,3 +26,4 @@ python3 scripts/plot_zero_counts.py
 python3 scripts/plot_mbench_timings.py
 python3 scripts/plot_runtimes.py
 python3 scripts/plot_compile_times.py
+python3 scripts/plot_speedup.py
