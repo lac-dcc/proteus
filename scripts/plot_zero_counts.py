@@ -85,7 +85,8 @@ def plot(total: defaultdict, out_path: Path) -> None:
                 color=LATTICE_COLORS[lattice],
                 label=lattice,
                 width=0.3,
-                zorder=2
+                zorder=2,
+                edgecolor="black"
             )
 
             axes[i].bar(
@@ -93,7 +94,8 @@ def plot(total: defaultdict, out_path: Path) -> None:
                 gen_values,
                 color=GEN_COLORS[lattice],
                 width=0.3,
-                zorder=2
+                zorder=2,
+                edgecolor="black"
             )
 
         abs_values = [totals["banded-16"][m]["abs_total"] for m in models]

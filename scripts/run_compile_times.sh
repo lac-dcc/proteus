@@ -125,7 +125,7 @@ for model in "${MODELS[@]}"; do
 done
 
 if [[ "$CSV_OUTPUT" == "true" ]]; then
-  echo "lattice,model,base_mean,base_std,compile_mean,compile_std"
+  echo "lattice,model,base_compile_mean,base_compile__std,compile_mean,compile_std"
 fi
 
 for li in "${!LATTICE_NAMES[@]}"; do

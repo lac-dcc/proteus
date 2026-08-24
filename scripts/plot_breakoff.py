@@ -52,7 +52,7 @@ def plot(breakoffs: defaultdict, matmuls: defaultdict, out_path: Path) -> None:
     for lattice in reversed(LATTICE_ORDER):
         values = [breakoffs[lattice][m] for m in models]
         ax.barh(x, values, color=LATTICE_COLORS[lattice],
-                label=lattice, height=0.8, zorder=2)
+                label=lattice, height=0.8, zorder=2, edgecolor="black")
 
     matmul_y = [i for i, m in enumerate(models) if m in matmuls]
     matmul_x = [matmuls[m] for m in models if m in matmuls]
