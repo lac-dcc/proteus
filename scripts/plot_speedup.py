@@ -51,14 +51,14 @@ def plot(speedups: defaultdict, out_path: Path) -> None:
 
     for i, lattice in enumerate(LATTICE_ORDER):
         values = [speedups[model][lattice] for model in models]
-        ax.scatter(x, values, marker=MARKERS[i % len(MARKERS)], label=lattice, s=80, edgecolor="black", linewidth=0.6, zorder=2)
+        ax.scatter(x, values, marker=MARKERS[i % len(MARKERS)], label=lattice, s=100, edgecolor="black", linewidth=0.6, zorder=2)
 
     ax.axhline(2.68, **GRID_STYLE)
     ax.axhline(7.14, **GRID_STYLE)
     ax.axhline(16.48, **GRID_STYLE)
     ax.axhline(76.10, **GRID_STYLE)
     ax.axhline(1, linewidth=2, linestyle="--", zorder=2)
-    ax.text(13.80, 0.80, "Baseline", ha="right", fontsize=12)
+    ax.text(13.80, 0.80, "Baseline", ha="right", fontsize=16)
 
     ax.set_ylim(0.5, 101)
     ax.set_yscale("log")
@@ -69,19 +69,21 @@ def plot(speedups: defaultdict, out_path: Path) -> None:
 
     ax.set_xticks(x)
     ax.set_xticklabels(models, rotation=30, ha="right")
-    ax.set_ylabel("Speedup (×)")
-    ax.set_title("Execution Speedup versus Baseline Execution", fontsize=14)
+    ax.tick_params(axis="both", labelsize=14)
+    ax.tick_params(axis="y", which="minor", labelsize=14)
+    ax.set_ylabel("Speedup (×)", fontsize=16)
+    ax.set_title("Execution Speedup versus Baseline Execution", fontsize=22)
     ax.grid()
 
-    for spine in ["top", "right", "left"]:
+    for spine in ["right", "left"]:
         ax.spines[spine].set_visible(False)
 
     ax.legend(
         loc="upper center",
         frameon=False,
-        ncols=7,
+        ncols=4,
         bbox_to_anchor=(0.5, -0.15),
-        fontsize=12
+        fontsize=16
     )
 
     fig.tight_layout()
