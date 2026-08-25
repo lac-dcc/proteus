@@ -556,6 +556,7 @@ void proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwMaxOp &op,
 void proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwSumOp &op,
                                    SparsityEngine &analysis) {
   auto *input = analysis.getState(op.getOperand(0));
+  auto *outs = analysis.getState(op.getDpsInits()[0]);
   auto *res = analysis.getState(op.getResult(0));
 
   auto kernelType =
@@ -567,7 +568,9 @@ void proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwSumOp &op,
 
   // Again, same logic for pooling as with convolutions in 2D
   (*res)[0] &= (*input)[0];
+  (*res)[0] |= (*outs)[0];
   (*res)[1] &= (*input)[1];
+  (*res)[1] |= (*outs)[1];
 
   // Again, same logic for pooling as with convolutions in 2D
   for (uint64_t dim = 0; dim < 2; dim++) {
@@ -586,6 +589,9 @@ void proteus::ForwardPass::visitOp(mlir::linalg::PoolingNchwSumOp &op,
       if (allSparse) {
         (*res)[dim + 2].reset(fiber);
       }
+
+      // Accumulator in the op
+      (*res)[dim + 2] |= (*outs)[dim + 2];
     }
   }
 }
@@ -846,7 +852,7 @@ proteus::ForwardPass::visitGenericAddFOp(mlir::linalg::GenericOp &op,
   for (std::size_t i = 0; i < res->rank(); i++) {
     llvm::BitVector temp = (*lhs)[i];
     temp |= (*rhs)[i];
-    (*res)[i] = temp;
+    (*res)[i] &= temp;
   }
 
   return mlir::success();
@@ -888,6 +894,6 @@ void proteus::ForwardPass::visitPassthroughOp(mlir::Operation &op,
   auto *res = analysis.getState(op.getOpResult(0));
 
   for (std::size_t i = 0; i < res->rank(); i++) {
-    (*res)[i] = (*operand)[i];
+    (*res)[i] &= (*operand)[i];
   }
 }
