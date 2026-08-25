@@ -5,7 +5,7 @@
 #include "mlir/IR/Value.h"
 #include "llvm/ADT/DenseMap.h"
 
-using ZeroMap = llvm::DenseMap<mlir::Value, uint64_t>;
+using ZeroMap = llvm::DenseMap<mlir::Value, std::pair<uint64_t, uint64_t>>;
 
 namespace proteus {
 void printState(const llvm::DenseMap<mlir::Value, SparsityLattice> &state);
@@ -27,15 +27,16 @@ struct ZeroCounter {
    * @brief Counts the number of zeroes in a SparsityLattice
    *
    * @param lattice The lattice to analyze.
-   * @return Total number of cleared bits across all dimensions.
+   * @return Total number of cleared bits across all dimensions and the total
+   * number of bits across all dimensions.
    */
-  static uint64_t count(const SparsityLattice &lattice);
+  static std::pair<uint64_t, uint64_t> count(const SparsityLattice &lattice);
 
   /**
    * @brief Counts the number of zeroes in a SparsityMap
    *
    * @param state The analysis state
-   * @return A map from each MLIR value to its zero count.
+   * @return A map from each MLIR value to its zero count and total count.
    */
   static ZeroMap count(const LatticeMap &state);
 

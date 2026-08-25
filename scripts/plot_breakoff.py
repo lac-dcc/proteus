@@ -52,7 +52,7 @@ def plot(breakoffs: defaultdict, matmuls: defaultdict, out_path: Path) -> None:
     for lattice in reversed(LATTICE_ORDER):
         values = [breakoffs[lattice][m] for m in models]
         ax.barh(x, values, color=LATTICE_COLORS[lattice],
-                label=lattice, height=0.8, zorder=2)
+                label=lattice, height=0.8, zorder=2, edgecolor="black")
 
     matmul_y = [i for i, m in enumerate(models) if m in matmuls]
     matmul_x = [matmuls[m] for m in models if m in matmuls]
@@ -61,10 +61,10 @@ def plot(breakoffs: defaultdict, matmuls: defaultdict, out_path: Path) -> None:
                label="1st matmul", zorder=3)
 
     ax.set_yticks(x)
-    ax.set_yticklabels(models, fontsize=9)
+    ax.set_yticklabels(models, fontsize=16)
     ax.invert_yaxis()
     ax.set_xlim(0, 100)
-    ax.tick_params(axis="x", labelsize=9)
+    ax.tick_params(axis="x", labelsize=14)
     ax.set_axisbelow(True)
     ax.grid(axis="x")
 
@@ -72,7 +72,8 @@ def plot(breakoffs: defaultdict, matmuls: defaultdict, out_path: Path) -> None:
         ax.spines[spine].set_visible(False)
 
     ax.set_title(
-        "Depth of Survived Sparsity in the IR as seeded lattice grows"
+        "Depth of Survived Sparsity in the IR as seeded lattice grows",
+        fontsize=18
     )
 
     handles, labels = ax.get_legend_handles_labels()
@@ -83,7 +84,8 @@ def plot(breakoffs: defaultdict, matmuls: defaultdict, out_path: Path) -> None:
         loc="upper center",
         frameon=False,
         ncols=4,
-        bbox_to_anchor=(0.5, -0.1)
+        bbox_to_anchor=(0.5, -0.1),
+        fontsize=14
     )
 
     fig.tight_layout()

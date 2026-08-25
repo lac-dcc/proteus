@@ -64,19 +64,22 @@ proteus::SparsityLattice proteus::observeMemref(DynamicMemRefType<float> mref) {
   return lattice;
 }
 
-uint64_t proteus::ZeroCounter::count(const SparsityLattice &lattice) {
+std::pair<uint64_t, uint64_t>
+proteus::ZeroCounter::count(const SparsityLattice &lattice) {
   uint64_t zeros = 0;
+  uint64_t totals = 0;
 
   for (uint64_t dim = 0; dim < lattice.rank(); ++dim) {
     const llvm::BitVector &bv = lattice[dim];
     zeros += bv.size() - bv.count();
+    totals += bv.size();
   }
 
-  return zeros;
+  return std::pair{zeros, totals};
 }
 
 ZeroMap proteus::ZeroCounter::count(const LatticeMap &state) {
-  llvm::DenseMap<mlir::Value, uint64_t> result;
+  ZeroMap result;
 
   result.reserve(state.size());
   for (const auto &[val, lattice] : state) {
@@ -89,6 +92,7 @@ ZeroMap proteus::ZeroCounter::count(const LatticeMap &state) {
 void proteus::ZeroCounter::print(const LatticeMap &state,
                                  llvm::raw_ostream &os) {
   uint64_t grandTotal = 0;
+  uint64_t absoluteTotal = 0;
 
   auto latticeTotals = count(state);
 
@@ -116,9 +120,11 @@ void proteus::ZeroCounter::print(const LatticeMap &state,
       os << "dim[" << dim << "]: " << zeros << "/" << bv.size() << " zeros";
     }
 
-    os << "  | total: " << latticeTotals[val] << "\n";
-    grandTotal += latticeTotals[val];
+    os << "  | total: " << latticeTotals[val].first << "\n";
+    grandTotal += latticeTotals[val].first;
+    absoluteTotal += latticeTotals[val].second;
   }
   os << "Grand total: " << grandTotal << " zero(s)\n";
+  os << "Absolute total: " << absoluteTotal << " zero(s)\n";
   os << "===================\n";
 }
