@@ -283,20 +283,26 @@ void proteus::ForwardPass::visitOp(mlir::tensor::PadOp &op,
 
   auto pads = op.getMixedLowPad();
 
+  SparsityLattice computed(res->shape());
+  for (std::size_t i = 0; i < computed.rank(); ++i) {
+    computed[i].reset();
+  }
+
   for (std::size_t i = 0; i < res->rank(); ++i) {
     auto lowPad = mlir::getConstantIntValue(pads[i]);
-
-    // Reset all and set as we go through the input lattice for that rank
-    (*res)[i].reset();
 
     for (std::size_t j = 0; j < (*input)[i].size(); j++) {
       // Padded fibers are correct, thus we set by the offset of the padding
       if ((*input)[i][j]) {
         if (lowPad.has_value()) {
-          (*res)[i].set(j + lowPad.value());
+          computed[i].set(j + lowPad.value());
         }
       }
     }
+  }
+
+  for (std::size_t i = 0; i < res->rank(); ++i) {
+    (*res)[i] &= computed[i];
   }
 }
 
